@@ -104,6 +104,8 @@ pub enum ContractError {
     GoalReached = 5,
     Overflow = 6,
     NotActive = 7,
+    InvalidFee = 8,
+    BelowMinimum = 9,
     InvalidDeadline = 8,
     CampaignPaused = 9,
     InvalidFee = 10,
