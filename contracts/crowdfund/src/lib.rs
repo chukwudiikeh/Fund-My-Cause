@@ -39,6 +39,7 @@ const KEY_TITLE: Symbol = symbol_short!("TITLE");
 const KEY_DESC: Symbol = symbol_short!("DESC");
 const KEY_SOCIAL: Symbol = symbol_short!("SOCIAL");
 const KEY_PLATFORM: Symbol = symbol_short!("PLATFORM");
+const KEY_ADMIN: Symbol = symbol_short!("ADMIN");
 
 // ── Data Types ────────────────────────────────────────────────────────────────
 
@@ -49,6 +50,7 @@ pub enum Status {
     Successful,
     Refunded,
     Cancelled,
+    Paused,
 }
 
 #[derive(Clone)]
@@ -92,6 +94,7 @@ pub enum ContractError {
     Overflow = 6,
     NotActive = 7,
     InvalidDeadline = 8,
+    CampaignPaused = 9,
 }
 
 // ── Contract ──────────────────────────────────────────────────────────────────
@@ -118,6 +121,8 @@ impl CrowdfundContract {
             return Err(ContractError::AlreadyInitialized);
         }
         creator.require_auth();
+
+        env.storage().instance().set(&KEY_ADMIN, &creator);
 
         if let Some(ref config) = platform_config {
             if config.fee_bps > 10_000 {
@@ -157,6 +162,9 @@ impl CrowdfundContract {
         }
 
         let status: Status = env.storage().instance().get(&KEY_STATUS).unwrap();
+        if status == Status::Paused {
+            return Err(ContractError::CampaignPaused);
+        }
         if status != Status::Active {
             return Err(ContractError::NotActive);
         }
@@ -327,6 +335,32 @@ impl CrowdfundContract {
                 .transfer(&env.current_contract_address(), &contributor, &amount);
             env.storage().persistent().set(&key, &0i128);
         }
+        Ok(())
+    }
+
+    /// Pause an active campaign (admin only).
+    pub fn pause(env: Env) -> Result<(), ContractError> {
+        let status: Status = env.storage().instance().get(&KEY_STATUS).unwrap();
+        if status != Status::Active {
+            return Err(ContractError::NotActive);
+        }
+        let admin: Address = env.storage().instance().get(&KEY_ADMIN).unwrap();
+        admin.require_auth();
+        env.storage().instance().set(&KEY_STATUS, &Status::Paused);
+        env.events().publish(("campaign", "paused"), ());
+        Ok(())
+    }
+
+    /// Unpause a paused campaign (admin only).
+    pub fn unpause(env: Env) -> Result<(), ContractError> {
+        let status: Status = env.storage().instance().get(&KEY_STATUS).unwrap();
+        if status != Status::Paused {
+            return Err(ContractError::NotActive);
+        }
+        let admin: Address = env.storage().instance().get(&KEY_ADMIN).unwrap();
+        admin.require_auth();
+        env.storage().instance().set(&KEY_STATUS, &Status::Active);
+        env.events().publish(("campaign", "unpaused"), ());
         Ok(())
     }
 
