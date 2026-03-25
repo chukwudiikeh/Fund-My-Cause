@@ -3,32 +3,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { CampaignCard } from "@/components/ui/CampaignCard";
 import { fetchAllCampaigns } from "@/lib/soroban";
 import type { Campaign } from "@/types/campaign";
-
-// ── Skeleton ──────────────────────────────────────────────────────────────────
-
-function CampaignSkeleton() {
-  return (
-    <div className="bg-gray-900 rounded-2xl overflow-hidden border border-gray-800 animate-pulse">
-      <div className="w-full h-48 bg-gray-800" />
-      <div className="p-5 space-y-3">
-        <div className="h-5 bg-gray-800 rounded w-3/4" />
-        <div className="h-4 bg-gray-800 rounded w-full" />
-        <div className="h-4 bg-gray-800 rounded w-5/6" />
-        <div className="h-2 bg-gray-800 rounded-full" />
-        <div className="h-4 bg-gray-800 rounded w-1/2" />
-        <div className="h-9 bg-gray-800 rounded-xl" />
-      </div>
-    </div>
-  );
-}
-
-function GridSkeleton() {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {Array.from({ length: 6 }).map((_, i) => <CampaignSkeleton key={i} />)}
-    </div>
-  );
-}
+import { LoadingSkeletonGrid } from "@/components/ui/LoadingSkeleton";
 
 // ── Campaign grid (async server component) ────────────────────────────────────
 
@@ -281,7 +256,7 @@ export default function CampaignsPage() {
       <Navbar />
       <section className="max-w-6xl mx-auto px-6 py-12">
         <h1 className="text-3xl font-bold mb-8">Active Campaigns</h1>
-        <Suspense fallback={<GridSkeleton />}>
+        <Suspense fallback={<LoadingSkeletonGrid count={6} />}>
           {/* @ts-expect-error async server component */}
           <CampaignGrid />
         </Suspense>
