@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { WalletProvider } from "@/context/WalletContext";
+import { ToastProvider } from "@/components/ui/Toast";
 
 export const metadata: Metadata = {
   title: "Fund-My-Cause",
@@ -11,7 +12,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <WalletProvider>{children}</WalletProvider>
+        <ToastProvider>
+          <WalletProvider>{children}</WalletProvider>
+        </ToastProvider>
       </body>
     </html>
   );
