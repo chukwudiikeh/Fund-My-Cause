@@ -9,6 +9,24 @@ const MIN_DEADLINE_HOURS = 1;
 const MAX_DEADLINE_YEARS = 1;
 
 /**
+ * Validate that a string is a valid Stellar contract ID.
+ * Contract IDs start with 'C', are 56 characters long, and use valid base32 characters.
+ * @returns Error message if invalid, null if valid
+ */
+export function isValidContractId(id: string): boolean {
+  if (!id || typeof id !== "string") {
+    return false;
+  }
+  // Must start with 'C' and be exactly 56 characters
+  if (!id.startsWith("C") || id.length !== 56) {
+    return false;
+  }
+  // Must contain only valid base32 characters (A-Z, 2-7)
+  const base32Regex = /^C[A-Z2-7]{55}$/;
+  return base32Regex.test(id);
+}
+
+/**
  * Strip HTML tags from a string.
  */
 export function stripHtmlTags(text: string): string {

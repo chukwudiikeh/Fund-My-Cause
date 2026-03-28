@@ -16,6 +16,7 @@ import {
   Horizon,
 } from "@stellar/stellar-sdk";
 import { CONTRACT_ID, RPC_URL, NETWORK_PASSPHRASE, HORIZON_URL } from "@/lib/constants";
+import { isValidContractId } from "@/lib/validation";
 
 /** A function that signs a transaction XDR and returns the signed XDR. */
 export type SignFn = (xdr: string) => Promise<string>;
@@ -72,6 +73,10 @@ async function simulateView(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   args: any[] = [],
 ): Promise<unknown> {
+  if (!isValidContractId(contractId)) {
+    throw new ContractError(`Invalid contract ID format: ${contractId}`);
+  }
+
   const rpc = getContractClient();
   const contract = new Contract(contractId);
   // Dummy account — only used for simulation, never submitted.
@@ -104,6 +109,10 @@ async function invokeContract(
   args: any[],
   signTx: SignFn,
 ): Promise<string> {
+  if (!isValidContractId(contractId)) {
+    throw new ContractError(`Invalid contract ID format: ${contractId}`);
+  }
+
   const rpc = getContractClient();
   const horizon = new Horizon.Server(HORIZON_URL);
   const account = await horizon.loadAccount(caller);
