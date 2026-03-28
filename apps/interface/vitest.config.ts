@@ -1,22 +1,26 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
-import react from "@vitejs/plugin-react";
-import path from "path";
 
 export default defineConfig({
-  plugins: [react()],
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+    },
+  },
   test: {
     environment: "jsdom",
     globals: true,
-    setupFiles: ["./src/test/setup.ts"],
-    // Only pick up .spec.* files — .test.* files are handled by Jest
-    include: ["src/**/*.spec.{ts,tsx}"],
+    setupFiles: ["./vitest.setup.ts"],
     coverage: {
       provider: "v8",
-      include: ["src/**/*.{ts,tsx}"],
-      exclude: ["src/**/*.spec.{ts,tsx}", "src/**/*.test.{ts,tsx}", "src/test/**"],
+      reporter: ["text", "lcov", "json-summary"],
+      reportsDirectory: "coverage",
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        branches: 80,
+        statements: 80,
+      },
     },
-  },
-  resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
   },
 });
