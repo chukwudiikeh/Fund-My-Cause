@@ -6,9 +6,12 @@ import { PledgeModal } from "@/components/ui/PledgeModal";
 import {
   fetchContribution,
   buildRefundTx,
+  buildWithdrawTx,
+  simulateTx,
   submitSignedTx,
-  type CampaignStatus,
+  type CampaignStatus 
 } from "@/lib/soroban";
+import { useToast } from "@/components/ui/Toast";
 
 interface Props {
   contractId: string;
@@ -18,6 +21,8 @@ interface Props {
   campaignTitle: string;
   status: CampaignStatus;
 }
+
+type ActionStatus = "idle" | "simulating" | "signing" | "submitting" | "done" | "error";
 
 export function CampaignActions({
   contractId,
@@ -31,6 +36,10 @@ export function CampaignActions({
   const [pledging, setPledging] = useState(false);
   const [userContribution, setUserContribution] = useState(0);
   const [refundClaimed, setRefundClaimed] = useState(false);
+  const { addToast } = useToast();
+  const [actionStatus, setActionStatus] = useState<ActionStatus>("idle");
+  const [actionError, setActionError] = useState("");
+  const [estimatedFee, setEstimatedFee] = useState<string | null>(null);
   const [txStatus, setTxStatus] = useState<
     "idle" | "pending" | "done" | "error"
   >("idle");
@@ -85,15 +94,19 @@ export function CampaignActions({
     }
   }
 
-  async function handleWithdraw() {
-    setTxStatus("pending");
-    try {
-      // TODO: invoke withdraw via Soroban RPC + Freighter signing
-      await new Promise((r) => setTimeout(r, 1500)); // placeholder
-      setTxStatus("done");
-    } catch {
-      setTxStatus("error");
-    }
+  function handleRefund() {
+    // buildWithdrawTx reused here; replace with buildRefundTx when available
+    executeAction(
+      () => buildWithdrawTx(address!, contractId),
+      "Refund claimed successfully!",
+    );
+  }
+
+  function handleWithdraw() {
+    executeAction(
+      () => buildWithdrawTx(address!, contractId),
+      "Funds withdrawn successfully!",
+    );
   }
 
   if (txStatus === "done" && refundClaimed) {
@@ -112,10 +125,18 @@ export function CampaignActions({
     );
   }
 
+  const isPending = actionStatus === "simulating" || actionStatus === "signing" || actionStatus === "submitting";
+
+  const pendingLabel: Record<string, string> = {
+    simulating: "Simulating…",
+    signing: "Waiting for signature…",
+    submitting: "Submitting…",
+  };
+
   return (
     <>
       <div className="flex flex-col gap-3">
-        {/* Pledge — always visible when campaign is active */}
+        {/* Pledge — active campaigns only */}
         {status === "Active" && !deadlinePassed && (
           <button
             onClick={() => (address ? setPledging(true) : connect())}
@@ -128,26 +149,40 @@ export function CampaignActions({
 
         {/* Claim Refund */}
         {canRefund && (
-          <button
-            onClick={handleRefund}
-            disabled={txStatus === "pending"}
-            className="w-full py-3 rounded-xl font-medium bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 transition text-white"
-          >
-            {txStatus === "pending"
-              ? "Processing…"
-              : `Claim Refund (${userContribution.toLocaleString()} XLM)`}
-          </button>
+          <>
+            {estimatedFee && actionStatus === "idle" && (
+              <p className="text-xs text-gray-400 text-center">
+                Estimated fee: <span className="text-white font-medium">{estimatedFee}</span>
+              </p>
+            )}
+            <button
+              onClick={handleRefund}
+              disabled={isPending}
+              className="w-full py-3 rounded-xl font-medium bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 transition text-white"
+            >
+              {isPending
+                ? pendingLabel[actionStatus]
+                : `Claim Refund (${userContribution.toLocaleString()} XLM)`}
+            </button>
+          </>
         )}
 
         {/* Withdraw Funds */}
         {canWithdraw && (
-          <button
-            onClick={handleWithdraw}
-            disabled={txStatus === "pending"}
-            className="w-full py-3 rounded-xl font-medium bg-green-600 hover:bg-green-500 disabled:opacity-50 transition text-white"
-          >
-            {txStatus === "pending" ? "Processing…" : "Withdraw Funds"}
-          </button>
+          <>
+            {estimatedFee && actionStatus === "idle" && (
+              <p className="text-xs text-gray-400 text-center">
+                Estimated fee: <span className="text-white font-medium">{estimatedFee}</span>
+              </p>
+            )}
+            <button
+              onClick={handleWithdraw}
+              disabled={isPending}
+              className="w-full py-3 rounded-xl font-medium bg-green-600 hover:bg-green-500 disabled:opacity-50 transition text-white"
+            >
+              {isPending ? pendingLabel[actionStatus] : "Withdraw Funds"}
+            </button>
+          </>
         )}
 
         {txStatus === "error" && (
@@ -160,6 +195,7 @@ export function CampaignActions({
       {pledging && (
         <PledgeModal
           campaignTitle={campaignTitle}
+          contractId={contractId}
           onClose={() => setPledging(false)}
         />
       )}

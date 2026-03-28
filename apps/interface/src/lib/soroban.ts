@@ -160,23 +160,8 @@ function normalizeStatus(value: unknown): CampaignStatus {
     }
   }
 
-  return "Active";
-}
-
-function stroopsToXlm(value: bigint): number {
-  return Number(value) / 10_000_000;
-}
-
-function ledgerTimestampToIso(value: bigint): string {
-  return new Date(Number(value) * 1000).toISOString();
-}
-
-async function simulateView(
-  contractId: string,
-  method: string,
-  args: xdr.ScVal[] = [],
-) {
-  const rpc = new SorobanRpc.Server(SOROBAN_RPC_URL);
+async function simulateView(contractId: string, method: string, args: xdr.ScVal[] = []) {
+  const rpc = new SorobanRpc.Server(RPC_URL);
   const contract = new Contract(contractId);
   const account = new Account(Keypair.random().publicKey(), "0");
   const tx = new TransactionBuilder(account, {
@@ -423,4 +408,79 @@ export async function buildUpdateMetadataTx(
     nativeToScVal(description, { type: "string" }),
     xdr.ScVal.scvVoid(),
   ]);
+}
+
+/**
+ * Build a contribute (pledge) transaction XDR.
+ * @param caller  - contributor's Stellar address
+ * @param contractId - campaign contract ID
+ * @param amountXlm  - amount in XLM (converted to stroops internally)
+ */
+export async function buildContributeTx(
+  caller: string,
+  contractId: string,
+  amountXlm: number,
+): Promise<string> {
+  const amountStroops = BigInt(Math.round(amountXlm * 1e7));
+  return buildSimpleContractTx(caller, contractId, "contribute", [
+    nativeToScVal(amountStroops, { type: "i128" }),
+  ]);
+}
+
+export interface SimulateResult {
+  /** Minimum resource fee in stroops */
+  minFee: number;
+  /** Fee formatted as XLM string for display, e.g. "0.0001234 XLM" */
+  minFeeXlm: string;
+  /** Transaction XDR with the simulation-populated soroban data attached */
+  preparedXdr: string;
+}
+
+/**
+ * Simulate a transaction against the Soroban RPC before asking the user to sign.
+ * - Estimates the resource fee
+ * - Detects contract errors early (before the user touches Freighter)
+ * - Returns the fee-bumped, simulation-prepared XDR ready for signing
+ *
+ * Throws a user-friendly Error if simulation fails.
+ */
+export async function simulateTx(unsignedXdr: string): Promise<SimulateResult> {
+  const rpc = new SorobanRpc.Server(RPC_URL);
+
+  const tx = TransactionBuilder.fromXDR(unsignedXdr, NETWORK_PASSPHRASE);
+  const result = await rpc.simulateTransaction(tx);
+
+  if (SorobanRpc.Api.isSimulationError(result)) {
+    // Surface the contract diagnostic message when available
+    const msg = result.error ?? "Simulation failed";
+    throw new Error(parseSimulationError(msg));
+  }
+
+  if (SorobanRpc.Api.isSimulationRestore(result)) {
+    throw new Error(
+      "This transaction requires a ledger entry restore. Please try again shortly.",
+    );
+  }
+
+  const success = result as SorobanRpc.Api.SimulateTransactionSuccessResponse;
+
+  // Attach soroban auth + resource data to the transaction
+  const prepared = SorobanRpc.assembleTransaction(tx, success).build();
+
+  const minFee = Number(success.minResourceFee ?? 0);
+  const minFeeXlm = (minFee / 1e7).toFixed(7).replace(/\.?0+$/, "") + " XLM";
+
+  return { minFee, minFeeXlm, preparedXdr: prepared.toXDR() };
+}
+
+/** Extract a readable message from a Soroban diagnostic error string. */
+function parseSimulationError(raw: string): string {
+  // Contract errors often look like: "HostError: Value(ContractError(N))\n..."
+  const contractMatch = raw.match(/ContractError\((\d+)\)/);
+  if (contractMatch) return `Contract error code ${contractMatch[1]}. Please check your inputs.`;
+  if (raw.includes("below minimum")) return "Amount is below the campaign's minimum contribution.";
+  if (raw.includes("deadline")) return "This campaign's deadline has passed.";
+  if (raw.includes("Cancelled")) return "This campaign has been cancelled.";
+  // Fallback: trim to first line so we don't dump a wall of XDR at the user
+  return raw.split("\n")[0] ?? "Simulation failed. Please try again.";
 }
