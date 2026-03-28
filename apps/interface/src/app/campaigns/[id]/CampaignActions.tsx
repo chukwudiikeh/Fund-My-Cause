@@ -5,6 +5,7 @@ import { useWallet } from "@/context/WalletContext";
 import { PledgeModal } from "@/components/ui/PledgeModal";
 import {
   fetchContribution,
+  buildRefundTx,
   buildWithdrawTx,
   simulateTx,
   submitSignedTx,
@@ -31,16 +32,18 @@ export function CampaignActions({
   campaignTitle,
   status,
 }: Props) {
-  const { address, connect, signTx, networkMismatch } = useWallet();
-  const { addToast } = useToast();
+  const { address, connect, networkMismatch, signTx } = useWallet();
   const [pledging, setPledging] = useState(false);
   const [userContribution, setUserContribution] = useState(0);
+  const [refundClaimed, setRefundClaimed] = useState(false);
+  const { addToast } = useToast();
   const [actionStatus, setActionStatus] = useState<ActionStatus>("idle");
   const [actionError, setActionError] = useState("");
   const [estimatedFee, setEstimatedFee] = useState<string | null>(null);
   const [txStatus, setTxStatus] = useState<
     "idle" | "pending" | "done" | "error"
   >("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (address) {
@@ -52,41 +55,42 @@ export function CampaignActions({
 
   const isCreator = !!address && address === creator;
   const canRefund =
-    !!address && deadlinePassed && !goalMet && userContribution > 0;
+    !!address &&
+    deadlinePassed &&
+    !goalMet &&
+    userContribution > 0 &&
+    !refundClaimed;
   const canWithdraw = isCreator && status === "Successful";
 
-  /**
-   * Shared simulate → sign → submit flow used by both refund and withdraw.
-   */
-  async function executeAction(buildXdr: () => Promise<string>, successMsg: string) {
-    if (!address) return;
-    setActionError("");
-    setEstimatedFee(null);
+  async function handleRefund() {
+    if (!address) {
+      setErrorMessage("Please connect wallet first");
+      return;
+    }
+
+    setTxStatus("pending");
+    setErrorMessage(null);
 
     try {
-      // Step 1: build
-      setActionStatus("simulating");
-      const unsignedXdr = await buildXdr();
+      // Build the refund transaction
+      const unsignedXdr = await buildRefundTx(address, contractId);
 
-      // Step 2: simulate — estimate fee and catch contract errors before signing
-      const { minFeeXlm, preparedXdr } = await simulateTx(unsignedXdr);
-      setEstimatedFee(minFeeXlm);
+      // Sign with Freighter
+      const signedXdr = await signTx(unsignedXdr);
 
-      // Step 3: sign
-      setActionStatus("signing");
-      const signedXdr = await signTx(preparedXdr);
+      // Submit to network
+      await submitSignedTx(signedXdr);
 
-      // Step 4: submit
-      setActionStatus("submitting");
-      const hash = await submitSignedTx(signedXdr);
-
-      setActionStatus("done");
-      addToast(successMsg, "success", hash);
+      setRefundClaimed(true);
+      setTxStatus("done");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Transaction failed.";
-      setActionError(msg);
-      setActionStatus("error");
-      addToast(msg, "error");
+      console.error("Refund failed:", err);
+      setErrorMessage(
+        err instanceof Error
+          ? err.message
+          : "Transaction failed. Please try again.",
+      );
+      setTxStatus("error");
     }
   }
 
@@ -105,7 +109,15 @@ export function CampaignActions({
     );
   }
 
-  if (actionStatus === "done") {
+  if (txStatus === "done" && refundClaimed) {
+    return (
+      <p className="text-green-500 dark:text-green-400 text-center py-4 font-medium">
+        ✓ Refund of {userContribution.toLocaleString()} XLM claimed
+      </p>
+    );
+  }
+
+  if (txStatus === "done") {
     return (
       <p className="text-green-500 dark:text-green-400 text-center py-4">
         Transaction submitted successfully!
@@ -173,8 +185,10 @@ export function CampaignActions({
           </>
         )}
 
-        {actionStatus === "error" && (
-          <p className="text-red-500 dark:text-red-400 text-sm text-center">{actionError}</p>
+        {txStatus === "error" && (
+          <p className="text-red-500 dark:text-red-400 text-sm text-center">
+            {errorMessage || "Transaction failed. Please try again."}
+          </p>
         )}
       </div>
 
