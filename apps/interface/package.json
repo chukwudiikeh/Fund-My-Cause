@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "test": "jest --run",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:vitest": "vitest run",
+    "test:vitest:watch": "vitest",
+    "test:vitest:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",
@@ -32,12 +35,15 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^2",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "jsdom": "^24",
     "jest": "^30.3.0",
     "jest-environment-jsdom": "^30.3.0",
     "tailwindcss": "^4",
     "ts-jest": "^29.4.6",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^2"
   }
 }
