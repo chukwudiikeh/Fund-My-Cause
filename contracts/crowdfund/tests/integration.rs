@@ -152,3 +152,126 @@ fn test_full_lifecycle_refund_path() {
     // Contract holds nothing
     assert_eq!(c.token.balance(&c.contract_id), 0);
 }
+
+#[test]
+fn test_withdraw_platform_fee_calculation_250_bps() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let deadline = 1_000u64;
+    let goal = 10_000i128;
+    let platform_addr = Address::generate(&env);
+    let fee_bps = 250u32; // 2.5 %
+
+    let c = setup(
+        &env,
+        goal,
+        deadline,
+        Some(PlatformConfig {
+            address: platform_addr.clone(),
+            fee_bps,
+        }),
+    );
+
+    let contributor = Address::generate(&env);
+    let amt = 10_000i128;
+
+    env.ledger().set_timestamp(500);
+    c.token_admin.mint(&contributor, &amt);
+    c.client.contribute(&contributor, &amt, &c.token_id);
+
+    // Advance past deadline
+    env.ledger().set_timestamp(deadline + 1);
+
+    let creator_before = c.token.balance(&c.creator);
+    let platform_before = c.token.balance(&platform_addr);
+
+    c.client.withdraw();
+
+    assert_eq!(c.token.balance(&platform_addr), platform_before + 250);
+    assert_eq!(c.token.balance(&c.creator), creator_before + 9_750);
+    assert_eq!(c.token.balance(&c.contract_id), 0);
+    assert_eq!(c.client.total_raised(), 0);
+}
+
+#[test]
+fn test_withdraw_platform_fee_calculation_zero_bps() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let deadline = 1_000u64;
+    let goal = 10_000i128;
+    let platform_addr = Address::generate(&env);
+    let fee_bps = 0u32;
+
+    let c = setup(
+        &env,
+        goal,
+        deadline,
+        Some(PlatformConfig {
+            address: platform_addr.clone(),
+            fee_bps,
+        }),
+    );
+
+    let contributor = Address::generate(&env);
+    let amt = 10_000i128;
+
+    env.ledger().set_timestamp(500);
+    c.token_admin.mint(&contributor, &amt);
+    c.client.contribute(&contributor, &amt, &c.token_id);
+
+    // Advance past deadline
+    env.ledger().set_timestamp(deadline + 1);
+
+    let creator_before = c.token.balance(&c.creator);
+    let platform_before = c.token.balance(&platform_addr);
+
+    c.client.withdraw();
+
+    assert_eq!(c.token.balance(&platform_addr), platform_before + 0);
+    assert_eq!(c.token.balance(&c.creator), creator_before + 10_000);
+    assert_eq!(c.token.balance(&c.contract_id), 0);
+    assert_eq!(c.client.total_raised(), 0);
+}
+
+#[test]
+fn test_withdraw_platform_fee_calculation_full_bps() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let deadline = 1_000u64;
+    let goal = 10_000i128;
+    let platform_addr = Address::generate(&env);
+    let fee_bps = 10_000u32;
+
+    let c = setup(
+        &env,
+        goal,
+        deadline,
+        Some(PlatformConfig {
+            address: platform_addr.clone(),
+            fee_bps,
+        }),
+    );
+
+    let contributor = Address::generate(&env);
+    let amt = 10_000i128;
+
+    env.ledger().set_timestamp(500);
+    c.token_admin.mint(&contributor, &amt);
+    c.client.contribute(&contributor, &amt, &c.token_id);
+
+    // Advance past deadline
+    env.ledger().set_timestamp(deadline + 1);
+
+    let creator_before = c.token.balance(&c.creator);
+    let platform_before = c.token.balance(&platform_addr);
+
+    c.client.withdraw();
+
+    assert_eq!(c.token.balance(&platform_addr), platform_before + 10_000);
+    assert_eq!(c.token.balance(&c.creator), creator_before + 0);
+    assert_eq!(c.token.balance(&c.contract_id), 0);
+    assert_eq!(c.client.total_raised(), 0);
+}
