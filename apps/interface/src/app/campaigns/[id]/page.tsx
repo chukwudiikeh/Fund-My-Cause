@@ -1,16 +1,35 @@
 import React from "react";
 import Image from "next/image";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { Navbar } from "@/components/layout/Navbar";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountdownTimer } from "@/components/ui/CountdownTimer";
 import { ShareButton } from "@/components/ui/ShareButton";
 import { TransactionHistory } from "@/components/ui/TransactionHistory";
 import { XlmAmount } from "@/components/ui/XlmAmount";
-import { fetchCampaign } from "@/lib/soroban";
+import { fetchCampaign, getStaticCampaignIds } from "@/lib/soroban";
 import { fetchXlmPrice } from "@/lib/price";
+import { APP_BASE_URL, DEFAULT_HERO_IMAGE, CAMPAIGN_PAGE_REVALIDATE_SECONDS } from "@/lib/constants";
 import { CampaignActions } from "./CampaignActions";
 import { CampaignDetailContent } from "./CampaignDetailContent";
+
+// ── Static Generation (SSG + ISR) ─────────────────────────────────────────────
+
+/**
+ * Generate static pages for all known campaigns at build time.
+ * Falls back to dynamic rendering for unknown contract IDs.
+ */
+export async function generateStaticParams() {
+  const campaignIds = getStaticCampaignIds();
+  return campaignIds.map((id) => ({
+    id,
+  }));
+}
+
+// ── ISR Configuration ─────────────────────────────────────────────────────────
+
+export const revalidate = CAMPAIGN_PAGE_REVALIDATE_SECONDS;
 
 // ── SEO ───────────────────────────────────────────────────────────────────────
 
@@ -20,12 +39,10 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://fund-my-cause.app";
   try {
     const c = await fetchCampaign(id);
     const description = c.description.slice(0, 160);
-    const url = `${BASE_URL}/campaigns/${id}`;
-    const image = "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=1200";
+    const url = `${APP_BASE_URL}/campaigns/${id}`;
     return {
       title: `${c.title} — Fund-My-Cause`,
       description,
@@ -34,14 +51,14 @@ export async function generateMetadata({
         description,
         url,
         siteName: "Fund-My-Cause",
-        images: [{ url: image, width: 1200, height: 630, alt: c.title }],
+        images: [{ url: DEFAULT_HERO_IMAGE, width: 1200, height: 630, alt: c.title }],
         type: "website",
       },
       twitter: {
         card: "summary_large_image",
         title: c.title,
         description,
-        images: [image],
+        images: [DEFAULT_HERO_IMAGE],
       },
     };
   } catch {
@@ -79,7 +96,7 @@ export default async function CampaignDetailPage({
       {/* Hero image */}
       <div className="w-full h-72 md:h-96 overflow-hidden relative">
         <Image
-          src="https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=1600"
+          src={DEFAULT_HERO_IMAGE.replace("w=1200", "w=1600")}
           alt={campaign.title}
           fill
           className="object-cover"

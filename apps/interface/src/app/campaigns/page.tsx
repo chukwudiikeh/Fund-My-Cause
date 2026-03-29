@@ -6,6 +6,7 @@ import { fetchXlmPrice } from "@/lib/price";
 import type { Campaign } from "@/types/campaign";
 import { LoadingSkeletonGrid } from "@/components/ui/LoadingSkeleton";
 import { EmptyState, NoCampaignsIllustration } from "@/components/ui/EmptyState";
+import { DEFAULT_CAMPAIGN_IMAGE } from "@/lib/constants";
 
 // ── Campaign grid (async server component) ────────────────────────────────────
 
@@ -20,7 +21,7 @@ async function CampaignGrid() {
     raised: c.raised,
     goal: c.goal,
     deadline: c.deadline,
-    image: "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=800",
+    image: DEFAULT_CAMPAIGN_IMAGE,
     contractId: c.contractId,
   }));
 
@@ -51,6 +52,12 @@ import { CampaignCard } from "@/components/ui/CampaignCard";
 import { PledgeModal } from "@/components/ui/PledgeModal";
 import { EmptyState, NoCampaignsIllustration } from "@/components/ui/EmptyState";
 import { Campaign } from "@/types/campaign";
+import {
+  DEFAULT_CAMPAIGN_IMAGE,
+  DEFAULT_CAMPAIGN_IMAGE_ALT_1,
+  DEFAULT_CAMPAIGN_IMAGE_ALT_2,
+  DEFAULT_CAMPAIGN_IMAGE_ALT_3,
+} from "@/lib/constants";
 import { Search } from "lucide-react";
 
 // ── Mock data (replace with real fetch) ──────────────────────────────────────
@@ -63,7 +70,7 @@ const ALL_CAMPAIGNS: Campaign[] = [
     raised: 15400,
     goal: 20000,
     deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-    image: "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=800",
+    image: DEFAULT_CAMPAIGN_IMAGE,
   },
   {
     id: "2",
@@ -72,7 +79,7 @@ const ALL_CAMPAIGNS: Campaign[] = [
     raised: 8200,
     goal: 50000,
     deadline: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString(),
-    image: "https://images.unsplash.com/photo-1555949963-aa79dcee5789?auto=format&fit=crop&q=80&w=800",
+    image: DEFAULT_CAMPAIGN_IMAGE_ALT_1,
   },
   {
     id: "3",
@@ -81,7 +88,7 @@ const ALL_CAMPAIGNS: Campaign[] = [
     raised: 45000,
     goal: 45000,
     deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-    image: "https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&q=80&w=800",
+    image: DEFAULT_CAMPAIGN_IMAGE_ALT_2,
   },
   {
     id: "4",
@@ -90,7 +97,7 @@ const ALL_CAMPAIGNS: Campaign[] = [
     raised: 3000,
     goal: 30000,
     deadline: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    image: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=800",
+    image: DEFAULT_CAMPAIGN_IMAGE_ALT_3,
   },
 ];
 

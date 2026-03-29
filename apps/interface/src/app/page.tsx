@@ -6,6 +6,11 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountdownTimer } from "@/components/ui/CountdownTimer";
 import { Rocket, Users, Coins, ArrowRight, PlusCircle } from "lucide-react";
 import { formatTimeLeft } from "@/lib/format";
+import {
+  DEFAULT_CAMPAIGN_IMAGE,
+  DEFAULT_CAMPAIGN_IMAGE_ALT_1,
+  DEFAULT_CAMPAIGN_IMAGE_ALT_2,
+} from "@/lib/constants";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 
@@ -24,7 +29,7 @@ const FEATURED = [
     raised: 15400,
     goal: 20000,
     deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-    image: "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=800",
+    image: DEFAULT_CAMPAIGN_IMAGE,
     featured: true,
   },
   {
@@ -34,7 +39,7 @@ const FEATURED = [
     raised: 8200,
     goal: 50000,
     deadline: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString(),
-    image: "https://images.unsplash.com/photo-1555949963-aa79dcee5789?auto=format&fit=crop&q=80&w=800",
+    image: DEFAULT_CAMPAIGN_IMAGE_ALT_1,
     featured: true,
   },
   {
@@ -44,7 +49,7 @@ const FEATURED = [
     raised: 45000,
     goal: 45000,
     deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-    image: "https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&q=80&w=800",
+    image: DEFAULT_CAMPAIGN_IMAGE_ALT_2,
     featured: true,
   },
 ];
