@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { X } from "lucide-react";
 import { useWallet } from "@/context/WalletContext";
 import { TransactionStatus, TxStatus } from "@/components/ui/TransactionStatus";
@@ -150,6 +150,30 @@ export function PledgeModal({
 
   const isProcessing = txStatus !== "idle" || pendingTx || isSigning;
 
+  // Focus trap
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = dialogRef.current;
+    if (!el) return;
+    const focusable = el.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    first?.focus();
+    const trap = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      if (e.shiftKey ? document.activeElement === first : document.activeElement === last) {
+        e.preventDefault();
+        (e.shiftKey ? last : first)?.focus();
+      }
+    };
+    el.addEventListener("keydown", trap);
+    return () => el.removeEventListener("keydown", trap);
+  }, []);
+
+  const titleId = "pledge-modal-title";
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div
@@ -181,7 +205,11 @@ export function PledgeModal({
                   ⚠️ This account is not funded on the network. Your transaction will fail.
                 </p>
               )}
+              <label htmlFor="pledge-amount" className="sr-only">
+                Amount in XLM (minimum {minXlm} XLM)
+              </label>
               <input
+                id="pledge-amount"
                 type="number"
                 placeholder={`Amount in XLM (min ${minXlm})`}
                 value={amount}
@@ -189,6 +217,7 @@ export function PledgeModal({
                 step="0.1"
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAmount(e.target.value)}
                 disabled={isProcessing}
+                aria-label={`Amount in XLM, minimum ${minXlm} XLM`}
                 className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2 text-white placeholder-gray-500 focus:outline-none disabled:opacity-50"
               />
               {minContribution > XLM_TO_STROOPS && (
