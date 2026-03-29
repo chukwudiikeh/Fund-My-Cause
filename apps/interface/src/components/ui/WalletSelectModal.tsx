@@ -76,6 +76,7 @@ export function WalletSelectModal({ onSelect, onClose }: WalletSelectModalProps)
           href="https://developers.stellar.org/docs/learn/encyclopedia/wallets"
           target="_blank"
           rel="noopener noreferrer"
+          aria-label="Learn what a wallet is (opens in new tab)"
           className="flex items-center gap-1 text-xs text-indigo-400 hover:underline"
         >
           <HelpCircle size={13} aria-hidden="true" /> What is a wallet?
