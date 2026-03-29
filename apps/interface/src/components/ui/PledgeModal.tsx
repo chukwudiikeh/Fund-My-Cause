@@ -20,6 +20,10 @@ interface PledgeModalProps {
   onClose: () => void;
   /** Called after a successful pledge so the parent can refresh stats. */
   onSuccess?: () => void;
+  /** Called immediately on submit with XLM amount for optimistic UI update. */
+  onOptimisticContribute?: (amountXlm: number) => void;
+  /** Called on tx failure to roll back optimistic update. */
+  onRollbackOptimistic?: () => void;
 }
 
 export function PledgeModal({
@@ -28,6 +32,8 @@ export function PledgeModal({
   minContribution = 1n,
   onClose,
   onSuccess,
+  onOptimisticContribute,
+  onRollbackOptimistic,
 }: PledgeModalProps) {
   const { address, connect, signTx, isSigning } = useWallet();
   const { exists: accountExists, loading: accountLoading } = useAccountExists(address);
@@ -67,6 +73,7 @@ export function PledgeModal({
     setErrorMessage("");
     setPendingTx(true);
     setTxStatus("signing");
+    onOptimisticContribute?.(xlm);
 
     try {
       const hash = await contribute(contractId, address, stroops, async (xdr) => {
@@ -86,6 +93,7 @@ export function PledgeModal({
       const msg = err instanceof Error ? err.message : "Transaction failed.";
       setErrorMessage(msg);
       setTxStatus("error");
+      onRollbackOptimistic?.();
       addToast(msg, "error");
     } finally {
       setPendingTx(false);

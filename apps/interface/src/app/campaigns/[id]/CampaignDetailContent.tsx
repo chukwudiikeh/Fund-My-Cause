@@ -56,7 +56,7 @@ function ContractIdRow({ contractId }: { contractId: string }) {
 }
 
 export function CampaignDetailContent({ contractId }: { contractId: string }) {
-  const { info, stats, loading, error, refresh } = useCampaign(contractId);
+  const { info, stats, loading, error, refresh, applyOptimisticContribution, rollbackOptimistic } = useCampaign(contractId);
 
   if (loading) {
     return (
@@ -179,6 +179,8 @@ export function CampaignDetailContent({ contractId }: { contractId: string }) {
           goalMet={goalMet}
           campaignTitle={info.title}
           status={info.status}
+          onOptimisticContribute={applyOptimisticContribution}
+          onRollbackOptimistic={rollbackOptimistic}
         />
       </div>
     </>
