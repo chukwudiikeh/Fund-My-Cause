@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
-import { Loader2 } from "lucide-react";
+import { Loader2, Copy, Check, ExternalLink } from "lucide-react";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountdownTimer } from "@/components/ui/CountdownTimer";
 import { ShareButton } from "@/components/ui/ShareButton";
@@ -16,6 +17,42 @@ function formatXlm(value: bigint) {
   return (Number(value) / 10_000_000).toLocaleString(undefined, {
     maximumFractionDigits: 2,
   });
+}
+
+function ContractIdRow({ contractId }: { contractId: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(contractId).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl bg-gray-100 px-4 py-3 dark:bg-gray-900">
+      <span className="font-mono text-xs text-gray-500 break-all flex-1">{contractId}</span>
+      <div className="relative flex items-center gap-2">
+        <button
+          onClick={handleCopy}
+          aria-label="Copy contract ID"
+          className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800 transition"
+        >
+          {copied ? <Check size={13} className="text-green-500" /> : <Copy size={13} />}
+          <span className={copied ? "text-green-500" : ""}>{copied ? "Copied!" : "Copy"}</span>
+        </button>
+        <a
+          href={`https://stellar.expert/explorer/testnet/contract/${contractId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="View on Stellar Expert"
+          className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-indigo-500 hover:bg-gray-200 dark:hover:bg-gray-800 transition"
+        >
+          <ExternalLink size={13} /> Explorer
+        </a>
+      </div>
+    </div>
+  );
 }
 
 export function CampaignDetailContent({ contractId }: { contractId: string }) {
@@ -81,6 +118,8 @@ export function CampaignDetailContent({ contractId }: { contractId: string }) {
             </span>
           </p>
         </div>
+
+        <ContractIdRow contractId={contractId} />
 
         <div className="space-y-2">
           <ProgressBar progress={progress} />
