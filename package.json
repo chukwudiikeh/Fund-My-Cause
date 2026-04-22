@@ -12,17 +12,19 @@
     "contracts:build": "cargo build --release --target wasm32-unknown-unknown --manifest-path contracts/crowdfund/Cargo.toml",
     "contracts:test": "cargo test --workspace",
     "test:e2e": "playwright test",
-    "format": "cd apps/interface && npx prettier --write",,
+    "format": "cd apps/interface && npx prettier --write",
     "prepare": "husky"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "husky": "^9.1.7",
-    "lint-staged": "^16.4.0"
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.8.3"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
-      "npm run format"
+      "eslint --max-warnings=0",
+      "prettier --write"
     ],
     "*.rs": [
       "cargo fmt --check",
