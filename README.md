@@ -225,13 +225,16 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Docker
 
-### Run with Docker Compose (recommended for local dev)
+> For the full deployment guide — environment variables, multi-stage build details, health checks, production hardening, and troubleshooting — see **[docs/docker.md](./docs/docker.md)**.
+
+### Run with Docker Compose (recommended)
 
 ```bash
-# Copy and fill in your env vars
+# 1. Copy and fill in your env vars
 cp apps/interface/.env.example apps/interface/.env.local
+# Edit apps/interface/.env.local with your contract ID and RPC URL
 
-# Build and start
+# 2. Build and start
 docker compose up --build
 ```
 
@@ -240,13 +243,29 @@ The app will be available at [http://localhost:3000](http://localhost:3000).
 ### Build the image manually
 
 ```bash
+# Build context must be the repo root (monorepo workspace)
 docker build -f apps/interface/Dockerfile -t fund-my-cause .
 docker run -p 3000:3000 --env-file apps/interface/.env.local fund-my-cause
 ```
 
-The Dockerfile uses a multi-stage build:
-1. `builder` — installs deps and builds Next.js with `output: 'standalone'`
-2. `runner` — copies only the standalone output for a minimal production image
+### Multi-stage build
+
+The Dockerfile uses a two-stage build to keep the production image small (~150–250 MB):
+
+1. `builder` — installs all dependencies and compiles Next.js with `output: 'standalone'`
+2. `runner` — copies only the standalone bundle; no source files or dev dependencies are shipped
+
+### Key environment variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_CONTRACT_ID` | Yes | Crowdfund contract address |
+| `NEXT_PUBLIC_RPC_URL` | Yes | Soroban RPC endpoint |
+| `NEXT_PUBLIC_NETWORK_PASSPHRASE` | Yes | Stellar network passphrase |
+| `NEXT_PUBLIC_HORIZON_URL` | No | Horizon REST API endpoint |
+| `NEXT_PUBLIC_PINATA_API_KEY` | No | Pinata IPFS key (image uploads) |
+
+See [docs/docker.md](./docs/docker.md) for the full variable reference, health check setup, and production deployment considerations.
 
 ---
 
