@@ -610,6 +610,114 @@ stellar contract invoke \
    - Secondary market for campaign tokens
    - Insurance and escrow services
 
+## RPC Rate Limits
+
+### Stellar RPC Limits
+
+The public Stellar RPC endpoints enforce rate limits to ensure fair usage:
+
+| Endpoint | Limit |
+|----------|-------|
+| `soroban-testnet.stellar.org` | ~100 req/s per IP |
+| `soroban-mainnet.stellar.org` | ~100 req/s per IP |
+| Horizon (`horizon.stellar.org`) | 3,600 req/hr per IP |
+
+Exceeding these limits returns HTTP `429 Too Many Requests`.
+
+### Caching Strategies
+
+Cache read-only contract data on the frontend to avoid redundant RPC calls:
+
+```ts
+// lib/cache.ts
+const TTL_MS = 30_000; // 30 seconds
+const cache = new Map<string, { value: unknown; expires: number }>();
+
+export function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const hit = cache.get(key);
+  if (hit && hit.expires > Date.now()) return Promise.resolve(hit.value as T);
+  return fn().then((value) => {
+    cache.set(key, { value, expires: Date.now() + TTL_MS });
+    return value;
+  });
+}
+
+// Usage
+const stats = await cached(`stats:${contractId}`, () => contract.get_stats());
+```
+
+Cache campaign stats for 30 s and static fields (goal, deadline, title) for 5 min. Invalidate on user-initiated transactions.
+
+### Retry with Exponential Backoff
+
+```ts
+// lib/rpc.ts
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxAttempts = 4,
+  baseDelayMs = 500
+): Promise<T> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      const isRateLimit =
+        err instanceof Error && err.message.includes("429");
+      if (!isRateLimit || attempt === maxAttempts - 1) throw err;
+      await new Promise((r) =>
+        setTimeout(r, baseDelayMs * 2 ** attempt + Math.random() * 100)
+      );
+    }
+  }
+  throw new Error("unreachable");
+}
+```
+
+### Alternative RPC Providers
+
+When the public endpoint is unavailable or rate-limited, switch to a third-party provider:
+
+| Provider | Endpoint | Notes |
+|----------|----------|-------|
+| Blockdaemon | `https://stellar-mainnet.g.alchemy.com/soroban/rpc` | Paid tiers available |
+| QuickNode | Custom URL from dashboard | Paid, high throughput |
+| Self-hosted | Deploy `stellar/quickstart` Docker image | Full control |
+
+Configure via environment variable so switching requires no code change:
+
+```bash
+NEXT_PUBLIC_SOROBAN_RPC_URL=https://your-provider-url
+```
+
+### Rate Limit Error Handling
+
+```ts
+// lib/rpc-client.ts
+import { SorobanRpc } from "@stellar/stellar-sdk";
+
+export function buildRpcServer(url: string) {
+  return new SorobanRpc.Server(url, { allowHttp: false });
+}
+
+export async function safeSimulate(
+  server: SorobanRpc.Server,
+  tx: Transaction
+) {
+  try {
+    return await withRetry(() => server.simulateTransaction(tx));
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.includes("429")) {
+      throw new Error(
+        "RPC rate limit reached. Please wait a moment and try again."
+      );
+    }
+    throw err;
+  }
+}
+```
+
+Surface rate-limit errors to users with a clear message rather than a generic failure.
+
 ## References
 
 - [Stellar Documentation](https://developers.stellar.org)
