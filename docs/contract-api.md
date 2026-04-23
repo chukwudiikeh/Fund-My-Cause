@@ -661,19 +661,288 @@ Stores contributor-specific data with TTL management.
 
 ## Events
 
-All events use the topic pattern `("campaign", "<event_type>")`.
+The contract emits Soroban events for every significant state change. All events share the same topic prefix `("campaign", "<event_type>")` and carry typed data payloads.
 
-| Event | Data | Description |
+### Event summary
+
+| Event type | Emitted by | Data payload | Description |
+|------------|-----------|--------------|-------------|
+| `initialized` | `initialize` | `()` | Campaign created and ready to accept contributions |
+| `contributed` | `contribute` | `(contributor: Address, amount: i128)` | A contribution was received |
+| `withdrawn` | `withdraw` | `(creator: Address, total: i128)` | Creator withdrew funds after a successful campaign |
+| `refunded` | `refund_single` | `(contributor: Address, amount: i128)` | A contributor claimed their refund |
+| `metadata_updated` | `update_metadata` | `()` | Campaign title, description, or social links changed |
+| `deadline_extended` | `extend_deadline` | `new_deadline: u64` | Campaign deadline was pushed to a later time |
+| `cancelled` | `cancel_campaign` | `()` | Campaign was cancelled by the creator |
+| `paused` | `pause` | `()` | Campaign was paused; contributions blocked |
+| `unpaused` | `unpause` | `()` | Campaign was resumed after a pause |
+
+---
+
+### `initialized`
+
+Emitted once when `initialize` completes successfully.
+
+**Topics:** `("campaign", "initialized")`  
+**Data:** `()` (no payload)  
+**When:** Campaign storage is fully written and the contract is ready to accept contributions.
+
+```rust
+env.events().publish(("campaign", "initialized"), ());
+```
+
+---
+
+### `contributed`
+
+Emitted every time a contributor successfully pledges tokens.
+
+**Topics:** `("campaign", "contributed")`  
+**Data:** `(contributor: Address, amount: i128)`
+
+| Field | Type | Description |
 |-------|------|-------------|
-| `initialized` | `()` | Campaign created |
-| `contributed` | `(contributor: Address, amount: i128)` | Contribution received |
-| `withdrawn` | `(creator: Address, total: i128)` | Funds withdrawn by creator |
-| `refunded` | `(contributor: Address, amount: i128)` | Refund issued to contributor |
-| `metadata_updated` | `()` | Campaign metadata changed |
-| `deadline_extended` | `new_deadline: u64` | Deadline extended |
-| `cancelled` | `()` | Campaign cancelled |
-| `paused` | `()` | Campaign paused |
-| `unpaused` | `()` | Campaign resumed |
+| `contributor` | `Address` | Stellar address of the contributor |
+| `amount` | `i128` | Amount contributed in this transaction (stroops) |
+
+```rust
+env.events().publish(("campaign", "contributed"), (contributor, amount));
+```
+
+> `amount` is the amount sent in **this** transaction, not the contributor's cumulative total. To get the running total call `contribution(contributor)`.
+
+---
+
+### `withdrawn`
+
+Emitted when the creator successfully withdraws funds after the campaign goal is met.
+
+**Topics:** `("campaign", "withdrawn")`  
+**Data:** `(creator: Address, total: i128)`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `creator` | `Address` | Campaign creator's Stellar address |
+| `total` | `i128` | Total raised before the platform fee deduction (stroops) |
+
+```rust
+env.events().publish(("campaign", "withdrawn"), (creator, total));
+```
+
+> `total` is the gross amount raised. The creator receives `total - platform_fee`. Use `get_stats()` before withdrawal to calculate the net payout.
+
+---
+
+### `refunded`
+
+Emitted for each contributor who successfully claims a refund via `refund_single`.
+
+**Topics:** `("campaign", "refunded")`  
+**Data:** `(contributor: Address, amount: i128)`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `contributor` | `Address` | Address receiving the refund |
+| `amount` | `i128` | Refund amount in stroops |
+
+```rust
+env.events().publish(("campaign", "refunded"), (contributor, amount));
+```
+
+> This event is only emitted when `amount > 0`. Calling `refund_single` for an address with no contribution is a no-op and produces no event.
+
+---
+
+### `metadata_updated`
+
+Emitted when the creator updates campaign metadata (title, description, or social links).
+
+**Topics:** `("campaign", "metadata_updated")`  
+**Data:** `()` (no payload)
+
+```rust
+env.events().publish(("campaign", "metadata_updated"), ());
+```
+
+> To read the new values after this event, call `title()`, `description()`, or `social_links()`.
+
+---
+
+### `deadline_extended`
+
+Emitted when the creator pushes the campaign deadline to a later timestamp.
+
+**Topics:** `("campaign", "deadline_extended")`  
+**Data:** `new_deadline: u64`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `new_deadline` | `u64` | New Unix timestamp (seconds) for the campaign end |
+
+```rust
+env.events().publish(("campaign", "deadline_extended"), new_deadline);
+```
+
+---
+
+### `cancelled`
+
+Emitted when the creator cancels the campaign. After this event, contributors may call `refund_single` to reclaim their funds.
+
+**Topics:** `("campaign", "cancelled")`  
+**Data:** `()` (no payload)
+
+```rust
+env.events().publish(("campaign", "cancelled"), ());
+```
+
+---
+
+### `paused`
+
+Emitted when the admin pauses the campaign. While paused, `contribute` calls fail with `CampaignPaused`.
+
+**Topics:** `("campaign", "paused")`  
+**Data:** `()` (no payload)
+
+```rust
+env.events().publish(("campaign", "paused"), ());
+```
+
+---
+
+### `unpaused`
+
+Emitted when the admin resumes a paused campaign. Contributions are accepted again.
+
+**Topics:** `("campaign", "unpaused")`  
+**Data:** `()` (no payload)
+
+```rust
+env.events().publish(("campaign", "unpaused"), ());
+```
+
+---
+
+### Listening to events from the frontend
+
+Use the Soroban RPC `getEvents` method to subscribe to or query past events. The `@stellar/stellar-sdk` client wraps this API.
+
+#### Fetch all events for a campaign contract
+
+```ts
+import { SorobanRpc } from "@stellar/stellar-sdk";
+
+const server = new SorobanRpc.Server(process.env.NEXT_PUBLIC_SOROBAN_RPC_URL!);
+
+async function getCampaignEvents(contractId: string) {
+  const response = await server.getEvents({
+    startLedger: 0,
+    filters: [
+      {
+        type: "contract",
+        contractIds: [contractId],
+        topics: [["*", "*"]], // match all ("campaign", "<type>") topics
+      },
+    ],
+    limit: 100,
+  });
+  return response.events;
+}
+```
+
+#### Listen for new contributions in real time
+
+```ts
+async function watchContributions(
+  contractId: string,
+  onContribution: (contributor: string, amount: bigint) => void,
+) {
+  let latestLedger = (await server.getLatestLedger()).sequence;
+
+  setInterval(async () => {
+    const response = await server.getEvents({
+      startLedger: latestLedger,
+      filters: [
+        {
+          type: "contract",
+          contractIds: [contractId],
+          topics: [["campaign", "contributed"]],
+        },
+      ],
+    });
+
+    for (const event of response.events) {
+      const [contributor, amount] = event.value.value as [
+        { value: string },
+        { value: bigint },
+      ];
+      onContribution(contributor.value, amount.value);
+    }
+
+    if (response.events.length > 0) {
+      latestLedger = response.latestLedger + 1;
+    }
+  }, 5_000); // poll every 5 seconds
+}
+```
+
+#### Decode a `contributed` event payload
+
+```ts
+import { xdr, scValToNative } from "@stellar/stellar-sdk";
+
+function decodeContributedEvent(event: SorobanRpc.Api.EventResponse) {
+  // topics[0] = "campaign", topics[1] = "contributed"
+  const [contributor, amount] = scValToNative(event.value) as [string, bigint];
+  return { contributor, amount };
+}
+```
+
+#### React hook example
+
+```tsx
+import { useEffect, useState } from "react";
+import { SorobanRpc, scValToNative } from "@stellar/stellar-sdk";
+
+export function useContributionEvents(contractId: string) {
+  const [events, setEvents] = useState<{ contributor: string; amount: bigint }[]>([]);
+
+  useEffect(() => {
+    const server = new SorobanRpc.Server(process.env.NEXT_PUBLIC_SOROBAN_RPC_URL!);
+    let startLedger = 0;
+
+    const poll = async () => {
+      const res = await server.getEvents({
+        startLedger,
+        filters: [
+          {
+            type: "contract",
+            contractIds: [contractId],
+            topics: [["campaign", "contributed"]],
+          },
+        ],
+      });
+
+      const decoded = res.events.map((e) => {
+        const [contributor, amount] = scValToNative(e.value) as [string, bigint];
+        return { contributor, amount };
+      });
+
+      if (decoded.length > 0) {
+        setEvents((prev) => [...prev, ...decoded]);
+        startLedger = res.latestLedger + 1;
+      }
+    };
+
+    poll();
+    const id = setInterval(poll, 6_000);
+    return () => clearInterval(id);
+  }, [contractId]);
+
+  return events;
+}
+```
 
 ---
 
