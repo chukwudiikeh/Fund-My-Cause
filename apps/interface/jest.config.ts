@@ -5,6 +5,7 @@ const config: Config = {
   transform: { "^.+\\.tsx?$": ["ts-jest", { tsconfig: { jsx: "react-jsx" } }] },
   moduleNameMapper: {
     "^@/lib/soroban$": "<rootDir>/src/__mocks__/lib/soroban.ts",
+    "^@/lib/constants$": "<rootDir>/src/__mocks__/lib/constants.ts",
     "^@/(.*)$": "<rootDir>/src/$1",
   },
   setupFilesAfterEnv: ["@testing-library/jest-dom"],
