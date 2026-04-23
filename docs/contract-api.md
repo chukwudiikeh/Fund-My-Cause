@@ -677,110 +677,157 @@ All events use the topic pattern `("campaign", "<event_type>")`.
 
 ---
 
-## Platform Fee Mechanism
+## Accepted Tokens & Multi-Token Support
 
-An optional platform fee can be collected on withdrawal by passing a `PlatformConfig` to `initialize`. If no config is provided, the creator receives 100% of the raised funds.
+The contract supports a token whitelist (`accepted_tokens`) that controls which Stellar tokens contributors may use. This section explains how the whitelist works, how to configure it, and how to use it with XLM or custom tokens.
 
-### How Basis Points Work
+### How the Whitelist Works
 
-Fees are expressed in **basis points (bps)**, where `10000 bps = 100%`. This avoids floating-point arithmetic on-chain.
+At initialization the creator can pass an optional `accepted_tokens: Option<Vec<Address>>` argument.
 
-| `fee_bps` | Percentage |
-|-----------|------------|
-| `0` | 0% (no fee) |
-| `50` | 0.5% |
-| `100` | 1% |
-| `250` | 2.5% |
-| `500` | 5% |
-| `1000` | 10% |
-| `10000` | 100% (maximum allowed) |
+**No whitelist set (default)**
 
-Any value above `10000` is rejected with `ContractError::InvalidFee` (code 8).
+When `accepted_tokens` is `None`, the contract only accepts the single `token` address passed to `initialize`. Any `contribute` call that passes a different token address will fail with `TokenNotAccepted` (error 13).
 
-### Fee Deduction on Withdrawal
+**Whitelist set**
 
-When `withdraw()` is called after a successful campaign, the contract applies the fee before paying the creator:
+When `accepted_tokens` is `Some(vec![...])`, the contract stores the list under `DataKey::AcceptedTokens` in instance storage. On every `contribute` call the contract checks whether the supplied `token` is present in that list. If it is not, the call fails with `TokenNotAccepted`.
 
-```
-fee            = total_raised × fee_bps / 10_000
-creator_payout = total_raised − fee
-```
+The default `token` address is **not** automatically included in the whitelist — if you want it accepted you must add it explicitly.
 
-The fee is transferred to `PlatformConfig.address` first, then the remainder goes to the creator. Both transfers happen atomically in the same transaction.
-
-From the contract source:
+Token validation logic (from `contribute`):
 
 ```rust
-let payout = if let Some(config) = platform_config {
-    let fee = total * config.fee_bps as i128 / 10_000;
-    token_client.transfer(&env.current_contract_address(), &config.address, &fee);
-    total - fee
-} else {
-    total
-};
-token_client.transfer(&env.current_contract_address(), &creator, &payout);
+let default_token: Address = env.storage().instance().get(&KEY_TOKEN).unwrap();
+if let Some(whitelist) = env.storage().instance().get::<_, Vec<Address>>(&DataKey::AcceptedTokens) {
+    if !whitelist.contains(&token) {
+        return Err(ContractError::TokenNotAccepted);
+    }
+} else if token != default_token {
+    return Err(ContractError::TokenNotAccepted);
+}
 ```
 
-### Configuration Examples
+### Token Address Verification
 
-**No fee (creator keeps everything):**
+Before passing a token address to the contract, verify it on-chain using the Stellar CLI or the Soroban RPC.
 
-```rust
-initialize(
-    env, creator, token, goal, deadline, min_contribution,
-    title, description, None,
-    None,  // no platform_config
-    None,
-)?;
+**XLM (native asset)**
+
+On Stellar, the native XLM asset is wrapped as a Soroban token contract. Retrieve its address with:
+
+```bash
+# Testnet
+stellar contract id asset --asset native --network testnet
+
+# Mainnet
+stellar contract id asset --asset native --network mainnet
 ```
 
-**2.5% fee (250 bps):**
+The returned contract ID is the address you pass as `token` or include in `accepted_tokens`.
 
-```rust
-let platform_config = Some(PlatformConfig {
-    address: platform_address,
-    fee_bps: 250,
-});
-// On a 1000 XLM raise:
-//   fee            = 1_000_000_0000 × 250 / 10_000 = 25 XLM
-//   creator_payout = 975 XLM
+**Custom / issued tokens**
+
+For any SEP-41-compatible token (e.g., USDC, custom assets), obtain the contract address from the issuer or asset explorer, then verify it responds to the standard token interface:
+
+```bash
+# Check token name — should return without error
+stellar contract invoke \
+  --id <TOKEN_CONTRACT_ID> \
+  --network testnet \
+  -- name
 ```
 
-**5% fee (500 bps):**
+### Initializing with Multiple Accepted Tokens
 
-```rust
-let platform_config = Some(PlatformConfig {
-    address: platform_address,
-    fee_bps: 500,
-});
-// On a 1000 XLM raise:
-//   fee            = 50 XLM
-//   creator_payout = 950 XLM
+Pass the list of allowed token addresses in the `accepted_tokens` parameter. The example below accepts both XLM and a custom USDC-like token:
+
+```bash
+stellar contract invoke \
+  --id <CAMPAIGN_CONTRACT_ID> \
+  --source <CREATOR_SECRET_KEY> \
+  --network testnet \
+  -- initialize \
+  --creator <CREATOR_ADDRESS> \
+  --token <XLM_CONTRACT_ID> \
+  --goal 1000000000 \
+  --deadline 1800000000 \
+  --min_contribution 10000000 \
+  --title "My Campaign" \
+  --description "Help us build something great" \
+  --social_links '[]' \
+  --platform_config 'null' \
+  --accepted_tokens '["<XLM_CONTRACT_ID>", "<USDC_CONTRACT_ID>"]'
 ```
 
-**Explicit zero fee (fee address set, but 0%):**
+> **Note:** The `token` parameter sets the primary token used for refunds and withdrawals. All tokens in `accepted_tokens` are accepted for contributions, but refunds via `refund_single` always use the primary `token`. Design your campaign accordingly.
 
-```rust
-let platform_config = Some(PlatformConfig {
-    address: platform_address,
-    fee_bps: 0,  // 0 bps — no fee deducted, creator receives full amount
-});
+### Accepting Only XLM
+
+To accept only XLM, omit `accepted_tokens` (pass `null`) and set `token` to the native asset contract ID:
+
+```bash
+stellar contract invoke \
+  --id <CAMPAIGN_CONTRACT_ID> \
+  --source <CREATOR_SECRET_KEY> \
+  --network testnet \
+  -- initialize \
+  --creator <CREATOR_ADDRESS> \
+  --token <XLM_CONTRACT_ID> \
+  --goal 1000000000 \
+  --deadline 1800000000 \
+  --min_contribution 10000000 \
+  --title "XLM-only Campaign" \
+  --description "Accepts XLM only" \
+  --social_links 'null' \
+  --platform_config 'null' \
+  --accepted_tokens 'null'
 ```
 
-> Note: `fee_bps: 0` with a `PlatformConfig` is valid and results in no fee transfer. It is equivalent to passing `None` for `platform_config` in terms of payout, but `get_campaign_info()` will still report `has_platform_config: true`.
+### Contributing with a Specific Token
 
-### Querying the Fee Configuration
+The `contribute` function requires the caller to specify which token they are sending. The address must match an entry in the whitelist (or the default token if no whitelist is set):
 
-```rust
-// Returns Some(PlatformConfig) if set, None otherwise
-let config: Option<PlatformConfig> = platform_config(env);
+```bash
+# Contribute 5 XLM
+stellar contract invoke \
+  --id <CAMPAIGN_CONTRACT_ID> \
+  --source <CONTRIBUTOR_SECRET_KEY> \
+  --network testnet \
+  -- contribute \
+  --contributor <CONTRIBUTOR_ADDRESS> \
+  --amount 50000000 \
+  --token <XLM_CONTRACT_ID>
 
-// Or via get_campaign_info()
-let info: CampaignInfo = get_campaign_info(env);
-// info.has_platform_config — bool
-// info.platform_fee_bps    — u32 (0 if no config)
-// info.platform_address    — Address (creator address if no config)
+# Contribute 5 USDC (only works if USDC is in the whitelist)
+stellar contract invoke \
+  --id <CAMPAIGN_CONTRACT_ID> \
+  --source <CONTRIBUTOR_SECRET_KEY> \
+  --network testnet \
+  -- contribute \
+  --contributor <CONTRIBUTOR_ADDRESS> \
+  --amount 50000000 \
+  --token <USDC_CONTRACT_ID>
 ```
+
+### Querying the Accepted Tokens List
+
+Use the `accepted_tokens` view function to inspect the current whitelist at any time:
+
+```bash
+stellar contract invoke \
+  --id <CAMPAIGN_CONTRACT_ID> \
+  --network testnet \
+  -- accepted_tokens
+```
+
+Returns a JSON array of token contract addresses, or an empty array `[]` if no whitelist was set.
+
+### Error Reference
+
+| Error | Code | When it occurs |
+|-------|------|----------------|
+| `TokenNotAccepted` | 13 | `contribute` called with a token address not in the whitelist (or not equal to the default token when no whitelist is set) |
 
 ---
 
