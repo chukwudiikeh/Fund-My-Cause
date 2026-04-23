@@ -159,7 +159,7 @@ export default function Home() {
               >
                 {c.featured && (
                   <span className="absolute top-3 left-3 z-10 flex items-center gap-1 bg-yellow-500/90 text-yellow-950 text-xs font-semibold px-2 py-0.5 rounded-full">
-                    ⭐ Featured
+                    <span aria-hidden="true">⭐</span> Featured
                   </span>
                 )}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -181,6 +181,7 @@ export default function Home() {
                   </p>
                   <Link
                     href={`/campaigns`}
+                    aria-label={`View and pledge to ${c.title}`}
                     className="block w-full py-2 rounded-xl font-medium text-center bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition"
                   >
                     {isFunded ? "Successfully Funded" : "Pledge Now"}
