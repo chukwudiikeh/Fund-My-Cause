@@ -677,6 +677,160 @@ All events use the topic pattern `("campaign", "<event_type>")`.
 
 ---
 
+## Accepted Tokens & Multi-Token Support
+
+The contract supports a token whitelist (`accepted_tokens`) that controls which Stellar tokens contributors may use. This section explains how the whitelist works, how to configure it, and how to use it with XLM or custom tokens.
+
+### How the Whitelist Works
+
+At initialization the creator can pass an optional `accepted_tokens: Option<Vec<Address>>` argument.
+
+**No whitelist set (default)**
+
+When `accepted_tokens` is `None`, the contract only accepts the single `token` address passed to `initialize`. Any `contribute` call that passes a different token address will fail with `TokenNotAccepted` (error 13).
+
+**Whitelist set**
+
+When `accepted_tokens` is `Some(vec![...])`, the contract stores the list under `DataKey::AcceptedTokens` in instance storage. On every `contribute` call the contract checks whether the supplied `token` is present in that list. If it is not, the call fails with `TokenNotAccepted`.
+
+The default `token` address is **not** automatically included in the whitelist — if you want it accepted you must add it explicitly.
+
+Token validation logic (from `contribute`):
+
+```rust
+let default_token: Address = env.storage().instance().get(&KEY_TOKEN).unwrap();
+if let Some(whitelist) = env.storage().instance().get::<_, Vec<Address>>(&DataKey::AcceptedTokens) {
+    if !whitelist.contains(&token) {
+        return Err(ContractError::TokenNotAccepted);
+    }
+} else if token != default_token {
+    return Err(ContractError::TokenNotAccepted);
+}
+```
+
+### Token Address Verification
+
+Before passing a token address to the contract, verify it on-chain using the Stellar CLI or the Soroban RPC.
+
+**XLM (native asset)**
+
+On Stellar, the native XLM asset is wrapped as a Soroban token contract. Retrieve its address with:
+
+```bash
+# Testnet
+stellar contract id asset --asset native --network testnet
+
+# Mainnet
+stellar contract id asset --asset native --network mainnet
+```
+
+The returned contract ID is the address you pass as `token` or include in `accepted_tokens`.
+
+**Custom / issued tokens**
+
+For any SEP-41-compatible token (e.g., USDC, custom assets), obtain the contract address from the issuer or asset explorer, then verify it responds to the standard token interface:
+
+```bash
+# Check token name — should return without error
+stellar contract invoke \
+  --id <TOKEN_CONTRACT_ID> \
+  --network testnet \
+  -- name
+```
+
+### Initializing with Multiple Accepted Tokens
+
+Pass the list of allowed token addresses in the `accepted_tokens` parameter. The example below accepts both XLM and a custom USDC-like token:
+
+```bash
+stellar contract invoke \
+  --id <CAMPAIGN_CONTRACT_ID> \
+  --source <CREATOR_SECRET_KEY> \
+  --network testnet \
+  -- initialize \
+  --creator <CREATOR_ADDRESS> \
+  --token <XLM_CONTRACT_ID> \
+  --goal 1000000000 \
+  --deadline 1800000000 \
+  --min_contribution 10000000 \
+  --title "My Campaign" \
+  --description "Help us build something great" \
+  --social_links '[]' \
+  --platform_config 'null' \
+  --accepted_tokens '["<XLM_CONTRACT_ID>", "<USDC_CONTRACT_ID>"]'
+```
+
+> **Note:** The `token` parameter sets the primary token used for refunds and withdrawals. All tokens in `accepted_tokens` are accepted for contributions, but refunds via `refund_single` always use the primary `token`. Design your campaign accordingly.
+
+### Accepting Only XLM
+
+To accept only XLM, omit `accepted_tokens` (pass `null`) and set `token` to the native asset contract ID:
+
+```bash
+stellar contract invoke \
+  --id <CAMPAIGN_CONTRACT_ID> \
+  --source <CREATOR_SECRET_KEY> \
+  --network testnet \
+  -- initialize \
+  --creator <CREATOR_ADDRESS> \
+  --token <XLM_CONTRACT_ID> \
+  --goal 1000000000 \
+  --deadline 1800000000 \
+  --min_contribution 10000000 \
+  --title "XLM-only Campaign" \
+  --description "Accepts XLM only" \
+  --social_links 'null' \
+  --platform_config 'null' \
+  --accepted_tokens 'null'
+```
+
+### Contributing with a Specific Token
+
+The `contribute` function requires the caller to specify which token they are sending. The address must match an entry in the whitelist (or the default token if no whitelist is set):
+
+```bash
+# Contribute 5 XLM
+stellar contract invoke \
+  --id <CAMPAIGN_CONTRACT_ID> \
+  --source <CONTRIBUTOR_SECRET_KEY> \
+  --network testnet \
+  -- contribute \
+  --contributor <CONTRIBUTOR_ADDRESS> \
+  --amount 50000000 \
+  --token <XLM_CONTRACT_ID>
+
+# Contribute 5 USDC (only works if USDC is in the whitelist)
+stellar contract invoke \
+  --id <CAMPAIGN_CONTRACT_ID> \
+  --source <CONTRIBUTOR_SECRET_KEY> \
+  --network testnet \
+  -- contribute \
+  --contributor <CONTRIBUTOR_ADDRESS> \
+  --amount 50000000 \
+  --token <USDC_CONTRACT_ID>
+```
+
+### Querying the Accepted Tokens List
+
+Use the `accepted_tokens` view function to inspect the current whitelist at any time:
+
+```bash
+stellar contract invoke \
+  --id <CAMPAIGN_CONTRACT_ID> \
+  --network testnet \
+  -- accepted_tokens
+```
+
+Returns a JSON array of token contract addresses, or an empty array `[]` if no whitelist was set.
+
+### Error Reference
+
+| Error | Code | When it occurs |
+|-------|------|----------------|
+| `TokenNotAccepted` | 13 | `contribute` called with a token address not in the whitelist (or not equal to the default token when no whitelist is set) |
+
+---
+
 ## Usage Examples
 
 ### Initialize Campaign
