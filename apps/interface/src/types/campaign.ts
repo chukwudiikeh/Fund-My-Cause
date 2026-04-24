@@ -1,4 +1,5 @@
 import type { CampaignStatus } from "./soroban";
+import type { Milestone } from "./milestone";
 
 /**
  * Campaign display model - extended from CampaignInfo with rendered fields.
@@ -38,4 +39,7 @@ export interface Campaign {
   hasPlatformConfig?: boolean;
   platformFeeBps?: number;
   platformAddress?: string;
+
+  // Milestones
+  milestones?: Milestone[];
 }
