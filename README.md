@@ -2,6 +2,19 @@
 
 A decentralized crowdfunding platform built on the [Stellar](https://stellar.org) network using [Soroban](https://soroban.stellar.org) smart contracts. Fund-My-Cause lets anyone create a campaign on-chain, accept contributions in XLM or any Stellar token, and automatically release or refund funds based on whether the goal is met.
 
+[![CI Status](https://github.com/Fund-My-Cause/Fund-My-Cause/workflows/Rust%20CI/badge.svg)](https://github.com/Fund-My-Cause/Fund-My-Cause/actions)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![Contract Version](https://img.shields.io/badge/contract-v0.1.0-brightgreen)](./contracts/crowdfund/Cargo.toml)
+![Coverage](https://img.shields.io/badge/coverage-80%25-green)
+
+---
+
+## Architecture
+
+![System Architecture](./docs/assets/architecture.svg)
+
+> Full component details and data-flow walkthroughs: [docs/architecture.md](./docs/architecture.md)
+
 ---
 
 ## How It Works
@@ -31,6 +44,10 @@ Fund-My-Cause/
 │       ├── src/
 │       │   └── lib.rs      # Core contract logic
 │       └── Cargo.toml
+│   └── registry/           # Soroban registry contract for campaign discovery
+│       ├── src/
+│       │   └── lib.rs      # register/list campaign contract IDs
+│       └── Cargo.toml
 ├── scripts/
 │   └── deploy.sh           # Automated deploy + initialize script
 ├── .github/
@@ -47,22 +64,22 @@ Fund-My-Cause/
 
 The Soroban contract lives in `contracts/crowdfund/src/lib.rs` and exposes the following interface:
 
-| Function | Description |
-|---|---|
-| `initialize(creator, token, goal, deadline, min_contribution, title, description, social_links, platform_config)` | Create a new campaign |
-| `contribute(contributor, amount)` | Pledge tokens before the deadline |
-| `update_metadata(title, description, social_links)` | Update campaign metadata if status is Active |
-| `withdraw()` | Creator claims funds after a successful campaign |
-| `refund_single(contributor)` | Contributor claims their own refund if goal not met |
-| `get_stats()` | Returns `CampaignStats` (total raised, progress bps, contributor count, etc.) |
-| `total_raised()` | Current total raised |
-| `goal()` | Campaign funding goal |
-| `deadline()` | Campaign deadline (ledger timestamp) |
-| `contribution(contributor)` | Contribution amount for a specific address |
-| `min_contribution()` | Minimum allowed contribution |
-| `title()` / `description()` | Campaign metadata |
-| `social_links()` | Campaign social URLs |
-| `version()` | Contract version number |
+| Function                                                                                                          | Description                                                                   |
+| ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `initialize(creator, token, goal, deadline, min_contribution, title, description, social_links, platform_config)` | Create a new campaign                                                         |
+| `contribute(contributor, amount)`                                                                                 | Pledge tokens before the deadline                                             |
+| `update_metadata(title, description, social_links)`                                                               | Update campaign metadata if status is Active                                  |
+| `withdraw()`                                                                                                      | Creator claims funds after a successful campaign                              |
+| `refund_single(contributor)`                                                                                      | Contributor claims their own refund if goal not met                           |
+| `get_stats()`                                                                                                     | Returns `CampaignStats` (total raised, progress bps, contributor count, etc.) |
+| `total_raised()`                                                                                                  | Current total raised                                                          |
+| `goal()`                                                                                                          | Campaign funding goal                                                         |
+| `deadline()`                                                                                                      | Campaign deadline (ledger timestamp)                                          |
+| `contribution(contributor)`                                                                                       | Contribution amount for a specific address                                    |
+| `min_contribution()`                                                                                              | Minimum allowed contribution                                                  |
+| `title()` / `description()`                                                                                       | Campaign metadata                                                             |
+| `social_links()`                                                                                                  | Campaign social URLs                                                          |
+| `version()`                                                                                                       | Contract version number                                                       |
 
 ### Pull-based Refund Model
 
@@ -79,6 +96,7 @@ An optional `PlatformConfig` can be set at initialization with a fee in basis po
 The interface is a Next.js 16 app using the App Router, Tailwind CSS v4, and Freighter wallet integration.
 
 Key components:
+
 - `Navbar` — wallet connect/disconnect via Freighter
 - `ProgressBar` — visual funding progress
 - `CountdownTimer` — live countdown to campaign deadline
@@ -92,14 +110,26 @@ The app uses `@stellar/freighter-api` for wallet connectivity. The `WalletContex
 
 ## Prerequisites
 
-**Contracts:**
-- [Rust](https://rustup.rs/) (stable)
-- `wasm32-unknown-unknown` target: `rustup target add wasm32-unknown-unknown`
-- [Stellar CLI](https://developers.stellar.org/docs/tools/developer-tools/cli/stellar-cli)
+### Contracts
 
-**Frontend:**
-- Node.js 18+
-- [Freighter browser extension](https://www.freighter.app/)
+| Requirement | Version | Installation |
+|---|---|---|
+| Rust | 1.70+ | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
+| wasm32 target | - | `rustup target add wasm32-unknown-unknown` |
+| Stellar CLI | 21.0+ | [Installation Guide](https://developers.stellar.org/docs/tools/developer-tools/cli/stellar-cli) |
+
+### Frontend
+
+| Requirement | Version | Installation |
+|---|---|---|
+| Node.js | 18+ | [nodejs.org](https://nodejs.org) |
+| npm | 9+ | Included with Node.js |
+| Freighter | Latest | [freighter.app](https://www.freighter.app/) |
+
+### Optional
+
+- Docker (for containerized deployment)
+- GitHub CLI (for release automation)
 
 ---
 
@@ -108,7 +138,7 @@ The app uses `@stellar/freighter-api` for wallet connectivity. The `WalletContex
 ### 1. Clone
 
 ```bash
-git clone https://github.com/<your-org>/Fund-My-Cause.git
+git clone https://github.com/Fund-My-Cause/Fund-My-Cause.git
 cd Fund-My-Cause
 ```
 
@@ -126,12 +156,26 @@ cargo test --workspace
 
 ```bash
 DEADLINE=$(date -d "+30 days" +%s)
-./scripts/deploy.sh <CREATOR_ADDRESS> <TOKEN_ADDRESS> 1000 $DEADLINE 10 "My Campaign" "A great cause" null
+./scripts/deploy.sh <CREATOR_ADDRESS> <TOKEN_ADDRESS> 1000 $DEADLINE 10 "My Campaign" "A great cause" null [REGISTRY_CONTRACT_ID]
 ```
 
-Save the printed `Contract ID` — you'll need it in the frontend config.
+If `REGISTRY_CONTRACT_ID` is omitted, the script deploys a new registry contract.
+After campaign initialization, the script calls `registry.register(campaign_id)` automatically.
 
-### 4. Run the frontend
+Save the printed `Contract ID` and `Registry ID` — you'll need them in frontend config.
+
+### 4. Configure frontend environment
+
+Create `apps/interface/.env.local`:
+
+```bash
+NEXT_PUBLIC_CROWDFUND_CONTRACT_ID=<CONTRACT_ID>
+NEXT_PUBLIC_REGISTRY_CONTRACT_ID=<REGISTRY_ID>
+NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
+NEXT_PUBLIC_NETWORK_PASSPHRASE=Test SDF Network ; September 2015
+```
+
+### 5. Run the frontend
 
 ```bash
 cd apps/interface
@@ -143,13 +187,77 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
+## Docker
+
+> For the full deployment guide — environment variables, multi-stage build details, health checks, production hardening, and troubleshooting — see **[docs/docker.md](./docs/docker.md)**.
+
+### Run with Docker Compose (recommended)
+
+```bash
+# 1. Copy and fill in your env vars
+cp apps/interface/.env.example apps/interface/.env.local
+# Edit apps/interface/.env.local with your contract ID and RPC URL
+
+# 2. Build and start
+docker compose up --build
+```
+
+The app will be available at [http://localhost:3000](http://localhost:3000).
+
+### Build the image manually
+
+```bash
+# Build context must be the repo root (monorepo workspace)
+docker build -f apps/interface/Dockerfile -t fund-my-cause .
+docker run -p 3000:3000 --env-file apps/interface/.env.local fund-my-cause
+```
+
+### Multi-stage build
+
+The Dockerfile uses a two-stage build to keep the production image small (~150–250 MB):
+
+1. `builder` — installs all dependencies and compiles Next.js with `output: 'standalone'`
+2. `runner` — copies only the standalone bundle; no source files or dev dependencies are shipped
+
+### Key environment variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_CONTRACT_ID` | Yes | Crowdfund contract address |
+| `NEXT_PUBLIC_RPC_URL` | Yes | Soroban RPC endpoint |
+| `NEXT_PUBLIC_NETWORK_PASSPHRASE` | Yes | Stellar network passphrase |
+| `NEXT_PUBLIC_HORIZON_URL` | No | Horizon REST API endpoint |
+| `NEXT_PUBLIC_PINATA_API_KEY` | No | Pinata IPFS key (image uploads) |
+
+See [docs/docker.md](./docs/docker.md) for the full variable reference, health check setup, and production deployment considerations.
+
+---
+
 ## CI/CD
 
-GitHub Actions runs on every push/PR to `main`:
-- Builds the WASM binary
-- Runs all Rust unit tests
+GitHub Actions workflows:
 
-See `.github/workflows/rust_ci.yml`.
+- `rust_ci.yml` — builds WASM + runs Rust tests on push/PR to `main`
+- `frontend_ci.yml` — lints and typechecks the frontend on push/PR to `main`
+- `playwright.yml` — runs Playwright E2E tests on PRs targeting `main`
+- `deploy-testnet.yml` — deploys contracts to Stellar testnet on push to `develop`
+
+Dependabot is configured to keep npm, Cargo, and GitHub Actions dependencies up to date weekly.
+
+---
+
+## Code Coverage
+
+The frontend enforces a minimum **80% coverage threshold** across all metrics (statements, branches, functions, lines) via Jest. The build fails if any metric drops below this floor.
+
+Run coverage locally:
+
+```bash
+cd apps/interface
+npm run test:coverage
+```
+
+Thresholds are configured in `apps/interface/jest.config.js` under `coverageThreshold.global`.
 
 ---
 

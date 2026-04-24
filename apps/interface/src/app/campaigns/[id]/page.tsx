@@ -1,41 +1,80 @@
 import React from "react";
-import { notFound } from "next/navigation";
+import Image from "next/image";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { Navbar } from "@/components/layout/Navbar";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountdownTimer } from "@/components/ui/CountdownTimer";
 import { ShareTrigger } from "./ShareTrigger";
 import { fetchCampaign } from "@/lib/soroban";
+import { ShareButton } from "@/components/ui/ShareButton";
+import { TransactionHistory } from "@/components/ui/TransactionHistory";
+import { XlmAmount } from "@/components/ui/XlmAmount";
+import { fetchCampaign, getStaticCampaignIds } from "@/lib/soroban";
+import { fetchXlmPrice } from "@/lib/price";
+import { APP_BASE_URL, DEFAULT_HERO_IMAGE, CAMPAIGN_PAGE_REVALIDATE_SECONDS } from "@/lib/constants";
 import { CampaignActions } from "./CampaignActions";
+import { CampaignDetailContent } from "./CampaignDetailContent";
+
+// ── Static Generation (SSG + ISR) ─────────────────────────────────────────────
+
+/**
+ * Generate static pages for all known campaigns at build time.
+ * Falls back to dynamic rendering for unknown contract IDs.
+ */
+export async function generateStaticParams() {
+  const campaignIds = getStaticCampaignIds();
+  return campaignIds.map((id) => ({
+    id,
+  }));
+}
+
+// ── ISR Configuration ─────────────────────────────────────────────────────────
+
+export const revalidate = CAMPAIGN_PAGE_REVALIDATE_SECONDS;
 
 // ── SEO ───────────────────────────────────────────────────────────────────────
 
-export async function generateMetadata(
-  { params }: { params: Promise<{ id: string }> }
-): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
   const { id } = await params;
   try {
     const c = await fetchCampaign(id);
+    const description = c.description.slice(0, 160);
+    const url = `${APP_BASE_URL}/campaigns/${id}`;
     return {
       title: `${c.title} — Fund-My-Cause`,
-      description: c.description.slice(0, 160),
+      description,
+      openGraph: {
+        title: c.title,
+        description,
+        url,
+        siteName: "Fund-My-Cause",
+        images: [{ url: DEFAULT_HERO_IMAGE, width: 1200, height: 630, alt: c.title }],
+        type: "website",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: c.title,
+        description,
+        images: [DEFAULT_HERO_IMAGE],
+      },
     };
   } catch {
     return { title: "Campaign — Fund-My-Cause" };
   }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function truncate(addr: string) {
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default async function CampaignDetailPage(
-  { params }: { params: Promise<{ id: string }> }
-) {
+export default async function CampaignDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
 
   let campaign;
@@ -44,6 +83,9 @@ export default async function CampaignDetailPage(
   } catch {
     notFound();
   }
+
+  // Fetch XLM price in parallel — null if CoinGecko is unavailable
+  const xlmPrice = await fetchXlmPrice();
 
   const progress = campaign.goal > 0 ? (campaign.raised / campaign.goal) * 100 : 0;
   const deadlinePassed = new Date(campaign.deadline) < new Date();
@@ -54,12 +96,14 @@ export default async function CampaignDetailPage(
       <Navbar />
 
       {/* Hero image */}
-      <div className="w-full h-72 md:h-96 overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=1600"
+      <div className="w-full h-72 md:h-96 overflow-hidden relative">
+        <Image
+          src={DEFAULT_HERO_IMAGE.replace("w=1200", "w=1600")}
           alt={campaign.title}
-          className="w-full h-full object-cover"
+          fill
+          className="object-cover"
+          priority
+          sizes="100vw"
         />
       </div>
 
@@ -80,8 +124,8 @@ export default async function CampaignDetailPage(
         <div className="space-y-2">
           <ProgressBar progress={progress} />
           <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-            <span>{campaign.raised.toLocaleString()} XLM raised</span>
-            <span>{campaign.goal.toLocaleString()} XLM goal</span>
+            <span><XlmAmount xlm={campaign.raised} price={xlmPrice} /> raised</span>
+            <span><XlmAmount xlm={campaign.goal} price={xlmPrice} /> goal</span>
           </div>
         </div>
 
@@ -93,7 +137,7 @@ export default async function CampaignDetailPage(
           </div>
           <div className="bg-gray-100 dark:bg-gray-900 rounded-xl p-4">
             <p className="text-xl font-semibold">
-              {campaign.averageContribution.toLocaleString()} XLM
+              <XlmAmount xlm={campaign.averageContribution} price={xlmPrice} />
             </p>
             <p className="text-gray-500 text-xs mt-1">Avg. contribution</p>
           </div>
@@ -108,6 +152,11 @@ export default async function CampaignDetailPage(
 
         {/* Share button */}
         <ShareTrigger campaignId={id} campaignTitle={campaign.title} />
+        {/* Transaction history */}
+        <TransactionHistory contractId={id} />
+
+        {/* Share buttons */}
+        <ShareButton campaignId={id} campaignTitle={campaign.title} />
 
         {/* Social links */}
         {campaign.socialLinks.length > 0 && (
@@ -140,6 +189,7 @@ export default async function CampaignDetailPage(
           status={campaign.status}
         />
       </div>
+      <CampaignDetailContent contractId={id} />
     </main>
   );
 }

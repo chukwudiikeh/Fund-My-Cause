@@ -3,9 +3,21 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/layout/Navbar";
+import { WalletGuard } from "@/components/WalletGuard";
 import { useWallet } from "@/context/WalletContext";
 import { buildInitializeTx, submitSignedTx } from "@/lib/soroban";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { uploadToPinata } from "@/lib/pinata";
+import {
+  validateTitle,
+  validateDescription,
+  validateGoal,
+  validateDeadline,
+  validateMinContribution,
+  validateFeeBps,
+  sanitizeTitle,
+  sanitizeDescription,
+} from "@/lib/validation";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -65,7 +77,29 @@ function Field({
 
 // ── Step components ───────────────────────────────────────────────────────────
 
+interface FieldWithErrorProps {
+  label: string;
+  error?: string | null;
+  children: React.ReactNode;
+}
+
+function FieldWithError({ label, error, children }: FieldWithErrorProps) {
+  return (
+    <div>
+      <label className={labelCls}>{label}</label>
+      {children}
+      {error && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{error}</p>}
+    </div>
+  );
+}
+
 function Step1({ data, set }: { data: FormData; set: (k: keyof FormData, v: string) => void }) {
+  const titleError = data.title ? validateTitle(data.title) : null;
+  const descError = data.description ? validateDescription(data.description) : null;
+  const goalError = data.goal ? validateGoal(data.goal) : null;
+  const deadlineError = data.deadline ? validateDeadline(data.deadline) : null;
+  const minContribError = data.minContribution ? validateMinContribution(data.minContribution, data.goal) : null;
+
   return (
     <div className="space-y-4">
       <Field label="Contract ID">
@@ -74,50 +108,82 @@ function Step1({ data, set }: { data: FormData; set: (k: keyof FormData, v: stri
       <Field label="Token Address">
         <input className={inputCls} placeholder="C..." value={data.token} onChange={(e) => set("token", e.target.value)} />
       </Field>
-      <Field label="Title">
+      <FieldWithError label="Title" error={titleError}>
         <input className={inputCls} placeholder="My Campaign" value={data.title} onChange={(e) => set("title", e.target.value)} />
-      </Field>
-      <Field label="Description">
+      </FieldWithError>
+      <FieldWithError label="Description" error={descError}>
         <textarea rows={3} className={inputCls} placeholder="What are you raising funds for?" value={data.description} onChange={(e) => set("description", e.target.value)} />
-      </Field>
+      </FieldWithError>
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Goal (XLM)">
+        <FieldWithError label="Goal (XLM)" error={goalError}>
           <input type="number" min="1" className={inputCls} placeholder="10000" value={data.goal} onChange={(e) => set("goal", e.target.value)} />
-        </Field>
-        <Field label="Min Contribution (XLM)">
+        </FieldWithError>
+        <FieldWithError label="Min Contribution (XLM)" error={minContribError}>
           <input type="number" min="1" className={inputCls} placeholder="1" value={data.minContribution} onChange={(e) => set("minContribution", e.target.value)} />
-        </Field>
+        </FieldWithError>
       </div>
-      <Field label="Deadline">
+      <FieldWithError label="Deadline" error={deadlineError}>
         <input type="date" className={inputCls} value={data.deadline} min={new Date().toISOString().split("T")[0]} onChange={(e) => set("deadline", e.target.value)} />
-      </Field>
+      </FieldWithError>
     </div>
   );
 }
 
+const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+const ACCEPTED = ["image/png", "image/jpeg", "image/webp"];
+
 function Step2({ data, set }: { data: FormData; set: (k: keyof FormData, v: string) => void }) {
+  const [preview, setPreview] = React.useState<string | null>(null);
+  const [uploading, setUploading] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!ACCEPTED.includes(file.type)) { setUploadError("Only PNG, JPG, or WebP allowed."); return; }
+    if (file.size > MAX_SIZE) { setUploadError("File must be under 5 MB."); return; }
+
+    setUploadError(null);
+    setPreview(URL.createObjectURL(file));
+    setUploading(true);
+    try {
+      const cid = await uploadToPinata(file);
+      set("imageUrl", cid);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
-      <Field label="Image URL or IPFS URI">
-        <input className={inputCls} placeholder="https:// or ipfs://" value={data.imageUrl} onChange={(e) => set("imageUrl", e.target.value)} />
+      <Field label="Campaign Image (PNG / JPG / WebP, max 5 MB)">
+        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-700 rounded-xl cursor-pointer hover:border-indigo-500 transition">
+          <span className="text-sm text-gray-400">
+            {uploading ? "Uploading…" : "Click to select a file"}
+          </span>
+          <input type="file" accept={ACCEPTED.join(",")} className="hidden" onChange={handleFile} disabled={uploading} />
+        </label>
       </Field>
-      {data.imageUrl && (
+
+      {uploadError && <p className="text-red-400 text-sm">{uploadError}</p>}
+
+      {preview && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={data.imageUrl}
-          alt="preview"
-          className="w-full h-48 object-cover rounded-xl border border-gray-700"
-          onError={(e) => (e.currentTarget.style.display = "none")}
-        />
+        <img src={preview} alt="preview" className="w-full h-48 object-cover rounded-xl border border-gray-700" />
       )}
-      <p className="text-xs text-gray-500">
-        Image is stored off-chain. Paste a public URL or an IPFS gateway link.
-      </p>
+
+      {data.imageUrl && !uploading && (
+        <p className="text-xs text-gray-500 break-all">Stored as: {data.imageUrl}</p>
+      )}
     </div>
   );
 }
 
 function Step3({ data, set }: { data: FormData; set: (k: keyof FormData, v: string) => void }) {
+  const feeError = data.feeBps ? validateFeeBps(data.feeBps) : null;
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-400">
@@ -126,9 +192,9 @@ function Step3({ data, set }: { data: FormData; set: (k: keyof FormData, v: stri
       <Field label="Platform Fee Address">
         <input className={inputCls} placeholder="G... or C..." value={data.feeAddress} onChange={(e) => set("feeAddress", e.target.value)} />
       </Field>
-      <Field label="Fee (basis points, e.g. 250 = 2.5%)">
+      <FieldWithError label="Fee (basis points, e.g. 250 = 2.5%)" error={feeError}>
         <input type="number" min="0" max="10000" className={inputCls} placeholder="0" value={data.feeBps} onChange={(e) => set("feeBps", e.target.value)} />
-      </Field>
+      </FieldWithError>
     </div>
   );
 }
@@ -166,15 +232,27 @@ function validateStep(step: number, data: FormData): string | null {
   if (step === 0) {
     if (!data.contractId.trim()) return "Contract ID is required.";
     if (!data.token.trim()) return "Token address is required.";
-    if (!data.title.trim()) return "Title is required.";
-    if (!data.description.trim()) return "Description is required.";
-    if (!data.goal || Number(data.goal) <= 0) return "Goal must be greater than 0.";
-    if (!data.deadline) return "Deadline is required.";
-    if (new Date(data.deadline) <= new Date()) return "Deadline must be in the future.";
+    
+    const titleErr = validateTitle(data.title);
+    if (titleErr) return titleErr;
+    
+    const descErr = validateDescription(data.description);
+    if (descErr) return descErr;
+    
+    const goalErr = validateGoal(data.goal);
+    if (goalErr) return goalErr;
+    
+    const deadlineErr = validateDeadline(data.deadline);
+    if (deadlineErr) return deadlineErr;
+    
+    const minContribErr = validateMinContribution(data.minContribution, data.goal);
+    if (minContribErr) return minContribErr;
   }
   if (step === 2) {
     if (data.feeAddress && !data.feeBps) return "Provide fee bps when a fee address is set.";
-    if (data.feeBps && Number(data.feeBps) > 10000) return "Fee cannot exceed 10000 bps (100%).";
+    
+    const feeErr = validateFeeBps(data.feeBps);
+    if (feeErr) return feeErr;
   }
   return null;
 }
@@ -182,7 +260,7 @@ function validateStep(step: number, data: FormData): string | null {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function CreateCampaignPage() {
-  const { address, connect, isConnecting, signTx } = useWallet();
+  const { address, signTx, networkMismatch } = useWallet();
   const router = useRouter();
 
   const [step, setStep] = useState(0);
@@ -223,8 +301,8 @@ export default function CreateCampaignPage() {
         goal: xlmToStroops(data.goal),
         deadline: deadlineTs,
         minContribution: xlmToStroops(data.minContribution || "1"),
-        title: data.title,
-        description: data.description,
+        title: sanitizeTitle(data.title),
+        description: sanitizeDescription(data.description),
         socialLinks: data.imageUrl ? [data.imageUrl] : undefined,
         platformFeeAddress: data.feeAddress || undefined,
         platformFeeBps: data.feeBps ? Number(data.feeBps) : undefined,
@@ -249,127 +327,100 @@ export default function CreateCampaignPage() {
 
   // ── Wallet gate ─────────────────────────────────────────────────────────────
 
-  if (!address) {
-    return (
-      <main className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white">
-        <Navbar />
-        <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4">
-          <p className="text-gray-600 dark:text-gray-400">Connect your wallet to create a campaign.</p>
-          <button
-            onClick={connect}
-            disabled={isConnecting}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 px-6 py-3 rounded-xl font-medium transition disabled:opacity-50 text-white"
-          >
-            {isConnecting && <Loader2 size={16} className="animate-spin" />}
-            Connect Wallet
-          </button>
-        </div>
-      </main>
-    );
-  }
-
-  // ── Post-deploy states ──────────────────────────────────────────────────────
-
-  if (txStatus === "success") {
-    return (
-      <main className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white">
-        <Navbar />
-        <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4 text-center px-6">
-          <CheckCircle2 size={48} className="text-green-500 dark:text-green-400" />
-          <h2 className="text-2xl font-bold">Campaign Deployed!</h2>
-          <p className="text-gray-600 dark:text-gray-400 text-sm break-all">Tx: {txHash}</p>
-          <button onClick={() => router.push("/")} className="mt-2 bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-xl transition text-white">
-            Back to Home
-          </button>
-        </div>
-      </main>
-    );
-  }
-
-  // ── Form ────────────────────────────────────────────────────────────────────
-
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white">
       <Navbar />
-
-      <div className="max-w-xl mx-auto px-6 py-12">
-        <h1 className="text-3xl font-bold mb-8">Create Campaign</h1>
-
-        {/* Step indicator */}
-        <div className="flex items-center gap-2 mb-8">
-          {STEPS.map((label, i) => (
-            <React.Fragment key={i}>
-              <div className="flex flex-col items-center gap-1">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition ${
-                    i < step
-                      ? "bg-indigo-600 text-white"
-                      : i === step
-                      ? "bg-indigo-500 text-white ring-2 ring-indigo-300"
-                      : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-500"
-                  }`}
-                >
-                  {i < step ? "✓" : i + 1}
-                </div>
-                <span className="text-xs text-gray-500 hidden sm:block">{label}</span>
-              </div>
-              {i < STEPS.length - 1 && (
-                <div className={`flex-1 h-px ${i < step ? "bg-indigo-600" : "bg-gray-300 dark:bg-gray-700"}`} />
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-
-        {/* Step content */}
-        <div className="bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 space-y-6">
-          <h2 className="text-lg font-semibold">{STEPS[step]}</h2>
-
-          {step === 0 && <Step1 data={data} set={set} />}
-          {step === 1 && <Step2 data={data} set={set} />}
-          {step === 2 && <Step3 data={data} set={set} />}
-          {step === 3 && <Step4 data={data} />}
-
-          {validationError && (
-            <p className="text-red-500 dark:text-red-400 text-sm">{validationError}</p>
-          )}
-
-          {txStatus === "error" && txError && (
-            <div className="flex items-start gap-2 text-red-500 dark:text-red-400 text-sm bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-800 rounded-xl p-3">
-              <XCircle size={16} className="mt-0.5 shrink-0" />
-              {txError}
-            </div>
-          )}
-
-          {/* Navigation */}
-          <div className="flex justify-between pt-2">
-            <button
-              onClick={back}
-              disabled={step === 0}
-              className="px-4 py-2 rounded-xl text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 transition"
-            >
-              Back
+      <WalletGuard message="Connect your wallet to create a campaign.">
+        {txStatus === "success" ? (
+          <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4 text-center px-6">
+            <CheckCircle2 size={48} className="text-green-500 dark:text-green-400" />
+            <h2 className="text-2xl font-bold">Campaign Deployed!</h2>
+            <p className="text-gray-600 dark:text-gray-400 text-sm break-all">Tx: {txHash}</p>
+            <button onClick={() => router.push("/")} className="mt-2 bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-xl transition text-white">
+              Back to Home
             </button>
-
-            {step < STEPS.length - 1 ? (
-              <button
-                onClick={next}
-                className="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-xl text-sm font-medium transition text-white"
-              >
-                Next
-              </button>
-            ) : (
-              <button
-                onClick={deploy}
-                disabled={txStatus === "pending"}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-xl text-sm font-medium transition disabled:opacity-50 text-white"
-              >
-                {txStatus === "pending" && <Loader2 size={16} className="animate-spin" />}
-                {txStatus === "pending" ? "Deploying..." : "Sign & Deploy"}
-              </button>
-            )}
           </div>
-        </div>
-      </div>
+        ) : (
+          <div className="max-w-xl mx-auto px-6 py-12">
+            <h1 className="text-3xl font-bold mb-8">Create Campaign</h1>
+
+            {/* Step indicator */}
+            <div className="flex items-center gap-2 mb-8">
+              {STEPS.map((label, i) => (
+                <React.Fragment key={i}>
+                  <div className="flex flex-col items-center gap-1">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition ${
+                        i < step
+                          ? "bg-indigo-600 text-white"
+                          : i === step
+                          ? "bg-indigo-500 text-white ring-2 ring-indigo-300"
+                          : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-500"
+                      }`}
+                    >
+                      {i < step ? "✓" : i + 1}
+                    </div>
+                    <span className="text-xs text-gray-500 hidden sm:block">{label}</span>
+                  </div>
+                  {i < STEPS.length - 1 && (
+                    <div className={`flex-1 h-px ${i < step ? "bg-indigo-600" : "bg-gray-300 dark:bg-gray-700"}`} />
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+
+            {/* Step content */}
+            <div className="bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 space-y-6">
+              <h2 className="text-lg font-semibold">{STEPS[step]}</h2>
+
+              {step === 0 && <Step1 data={data} set={set} />}
+              {step === 1 && <Step2 data={data} set={set} />}
+              {step === 2 && <Step3 data={data} set={set} />}
+              {step === 3 && <Step4 data={data} />}
+
+              {validationError && (
+                <p className="text-red-500 dark:text-red-400 text-sm">{validationError}</p>
+              )}
+
+              {txStatus === "error" && txError && (
+                <div className="flex items-start gap-2 text-red-500 dark:text-red-400 text-sm bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-800 rounded-xl p-3">
+                  <XCircle size={16} className="mt-0.5 shrink-0" />
+                  {txError}
+                </div>
+              )}
+
+              {/* Navigation */}
+              <div className="flex justify-between pt-2">
+                <button
+                  onClick={back}
+                  disabled={step === 0}
+                  className="px-4 py-2 rounded-xl text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 transition"
+                >
+                  Back
+                </button>
+
+                {step < STEPS.length - 1 ? (
+                  <button
+                    onClick={next}
+                    className="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-xl text-sm font-medium transition text-white"
+                  >
+                    Next
+                  </button>
+                ) : (
+                  <button
+                    onClick={deploy}
+                    disabled={txStatus === "pending" || networkMismatch}
+                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-xl text-sm font-medium transition disabled:opacity-50 text-white"
+                  >
+                    {txStatus === "pending" && <Loader2 size={16} className="animate-spin" />}
+                    {txStatus === "pending" ? "Deploying..." : "Sign & Deploy"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </WalletGuard>
     </main>
   );
 }

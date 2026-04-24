@@ -2,13 +2,16 @@ import React, { Suspense } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { CampaignCard } from "@/components/ui/CampaignCard";
 import { fetchAllCampaigns } from "@/lib/soroban";
+import { fetchXlmPrice } from "@/lib/price";
 import type { Campaign } from "@/types/campaign";
 import { LoadingSkeletonGrid } from "@/components/ui/LoadingSkeleton";
+import { EmptyState, NoCampaignsIllustration } from "@/components/ui/EmptyState";
+import { DEFAULT_CAMPAIGN_IMAGE } from "@/lib/constants";
 
 // ── Campaign grid (async server component) ────────────────────────────────────
 
 async function CampaignGrid() {
-  const onChain = await fetchAllCampaigns();
+  const [onChain, xlmPrice] = await Promise.all([fetchAllCampaigns(), fetchXlmPrice()]);
 
   // Map on-chain data to Campaign shape; fall back to placeholder image
   const campaigns: Campaign[] = onChain.map((c) => ({
@@ -18,25 +21,23 @@ async function CampaignGrid() {
     raised: c.raised,
     goal: c.goal,
     deadline: c.deadline,
-    image: "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=800",
+    image: DEFAULT_CAMPAIGN_IMAGE,
     contractId: c.contractId,
   }));
 
   if (campaigns.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 text-center space-y-4">
-        <p className="text-5xl">🌱</p>
-        <h2 className="text-xl font-semibold text-white">No campaigns yet</h2>
-        <p className="text-gray-400 max-w-sm">
-          Be the first to launch a campaign on Fund-My-Cause and start raising funds on Stellar.
-        </p>
-      </div>
+      <EmptyState
+        illustration={<NoCampaignsIllustration />}
+        title="No campaigns yet"
+        description="Be the first to launch a campaign on Fund-My-Cause and start raising funds on Stellar."
+      />
     );
   }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {campaigns.map((c) => <CampaignCard key={c.id} campaign={c} />)}
+      {campaigns.map((c) => <CampaignCard key={c.id} campaign={c} xlmPrice={xlmPrice} />)}
     </div>
   );
 }
@@ -47,10 +48,16 @@ async function CampaignGrid() {
 import React, { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/layout/Navbar";
-import { ProgressBar } from "@/components/ui/ProgressBar";
-import { CountdownTimer } from "@/components/ui/CountdownTimer";
+import { CampaignCard } from "@/components/ui/CampaignCard";
 import { PledgeModal } from "@/components/ui/PledgeModal";
+import { EmptyState, NoCampaignsIllustration } from "@/components/ui/EmptyState";
 import { Campaign } from "@/types/campaign";
+import {
+  DEFAULT_CAMPAIGN_IMAGE,
+  DEFAULT_CAMPAIGN_IMAGE_ALT_1,
+  DEFAULT_CAMPAIGN_IMAGE_ALT_2,
+  DEFAULT_CAMPAIGN_IMAGE_ALT_3,
+} from "@/lib/constants";
 import { Search } from "lucide-react";
 
 // ── Mock data (replace with real fetch) ──────────────────────────────────────
@@ -58,39 +65,55 @@ import { Search } from "lucide-react";
 const ALL_CAMPAIGNS: Campaign[] = [
   {
     id: "1",
+    contractId: "1",
     title: "Eco-Friendly Water Purification",
     description: "A compact, solar-powered water purification system for off-grid communities.",
+    creator: "GABC1234ECOFRIENDLY",
     raised: 15400,
     goal: 20000,
     deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-    image: "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=800",
+    image: DEFAULT_CAMPAIGN_IMAGE,
+    status: "Active",
+    token: "XLM",
   },
   {
     id: "2",
+    contractId: "2",
     title: "Open Source AI Education Platform",
     description: "Democratizing AI education with free, high-quality interactive courses for everyone.",
+    creator: "GDEF5678AIEDUCATION",
     raised: 8200,
     goal: 50000,
     deadline: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString(),
-    image: "https://images.unsplash.com/photo-1555949963-aa79dcee5789?auto=format&fit=crop&q=80&w=800",
+    image: DEFAULT_CAMPAIGN_IMAGE_ALT_1,
+    status: "Active",
+    token: "XLM",
   },
   {
     id: "3",
+    contractId: "3",
     title: "Community Solar Microgrid",
     description: "Empowering neighborhoods to generate and share sustainable solar energy.",
+    creator: "GHIJ9012SOLARGRID",
     raised: 45000,
     goal: 45000,
     deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-    image: "https://images.unsplash.com/photo-1509391366360-2e959784a276?auto=format&fit=crop&q=80&w=800",
+    image: DEFAULT_CAMPAIGN_IMAGE_ALT_2,
+    status: "Successful",
+    token: "XLM",
   },
   {
     id: "4",
+    contractId: "4",
     title: "Decentralized Medical Records",
     description: "Secure, patient-owned health records on the Stellar blockchain.",
+    creator: "GKLM3456MEDRECORDS",
     raised: 3000,
     goal: 30000,
     deadline: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    image: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=800",
+    image: DEFAULT_CAMPAIGN_IMAGE_ALT_3,
+    status: "Active",
+    token: "XLM",
   },
 ];
 
@@ -128,6 +151,8 @@ const FILTER_TABS: { label: string; value: FilterTab }[] = [
   { label: "Ended", value: "ended" },
 ];
 
+const PAGE_SIZE = 9;
+
 // ── Inner component (uses useSearchParams) ────────────────────────────────────
 
 function CampaignsInner() {
@@ -137,6 +162,7 @@ function CampaignsInner() {
   const filter = (searchParams.get("filter") as FilterTab) ?? "all";
   const sort = (searchParams.get("sort") as SortOption) ?? "newest";
   const query = searchParams.get("q") ?? "";
+  const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
 
   const [pledge, setPledge] = useState<string | null>(null);
 
@@ -147,6 +173,32 @@ function CampaignsInner() {
     } else {
       params.set(key, value);
     }
+    // Reset to page 1 when filters change
+    if (key !== "page") params.delete("page");
+    router.replace(`/campaigns?${params.toString()}`, { scroll: false });
+  };
+
+  // Local input value for debouncing — keeps the input responsive while
+  // delaying the URL update (and re-render) until the user stops typing.
+  const [inputValue, setInputValue] = useState(query);
+
+  // Sync local input when the URL query param changes externally (e.g. back/forward).
+  React.useEffect(() => {
+    setInputValue(query);
+  }, [query]);
+
+  // Debounce: push to URL 300 ms after the user stops typing.
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setParam("q", inputValue);
+    }, 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputValue]);
+
+  const setPage = (p: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (p === 1) params.delete("page"); else params.set("page", String(p));
     router.replace(`/campaigns?${params.toString()}`, { scroll: false });
   };
 
@@ -156,12 +208,17 @@ function CampaignsInner() {
         (c) =>
           !query ||
           c.title.toLowerCase().includes(query.toLowerCase()) ||
-          c.description.toLowerCase().includes(query.toLowerCase()),
+          c.description.toLowerCase().includes(query.toLowerCase()) ||
+          c.creator.toLowerCase().includes(query.toLowerCase()),
       ),
       filter,
     ),
     sort,
   );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <>
@@ -173,8 +230,9 @@ function CampaignsInner() {
           <input
             type="text"
             placeholder="Search campaigns..."
-            value={query}
-            onChange={(e) => setParam("q", e.target.value)}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            aria-label="Search campaigns"
             className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl pl-9 pr-4 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-indigo-500"
           />
         </div>
@@ -192,11 +250,25 @@ function CampaignsInner() {
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-2 mb-8">
-        {FILTER_TABS.map((tab) => (
+      <div className="flex gap-2 mb-8" role="tablist" aria-label="Filter campaigns">
+        {FILTER_TABS.map((tab, idx) => (
           <button
             key={tab.value}
+            role="tab"
+            aria-selected={filter === tab.value}
+            tabIndex={filter === tab.value ? 0 : -1}
             onClick={() => setParam("filter", tab.value)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowRight") {
+                const next = FILTER_TABS[(idx + 1) % FILTER_TABS.length];
+                setParam("filter", next.value);
+                (e.currentTarget.parentElement?.children[(idx + 1) % FILTER_TABS.length] as HTMLElement)?.focus();
+              } else if (e.key === "ArrowLeft") {
+                const prev = FILTER_TABS[(idx - 1 + FILTER_TABS.length) % FILTER_TABS.length];
+                setParam("filter", prev.value);
+                (e.currentTarget.parentElement?.children[(idx - 1 + FILTER_TABS.length) % FILTER_TABS.length] as HTMLElement)?.focus();
+              }
+            }}
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition ${
               filter === tab.value
                 ? "bg-indigo-600 text-white"
@@ -210,40 +282,58 @@ function CampaignsInner() {
 
       {/* Grid */}
       {filtered.length === 0 ? (
-        <p className="text-center text-gray-500 py-20">No campaigns match your filters.</p>
+        <EmptyState
+          illustration={<NoCampaignsIllustration />}
+          title="No campaigns found"
+          description="Try adjusting your search or filters to find what you're looking for."
+          action={{ label: "Clear filters", onClick: () => router.replace("/campaigns") }}
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {filtered.map((campaign) => {
-            const progress = (campaign.raised / campaign.goal) * 100;
-            const isFunded = progress >= 100;
-            return (
-              <div key={campaign.id} className="bg-gray-100 dark:bg-gray-900 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={campaign.image} alt={campaign.title} className="w-full h-48 object-cover" />
-                <div className="p-5 space-y-3">
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{campaign.title}</h2>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">{campaign.description}</p>
-                  <ProgressBar progress={progress} />
-                  <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                    <span>{campaign.raised.toLocaleString()} XLM raised</span>
-                    <span>{campaign.goal.toLocaleString()} XLM goal</span>
-                  </div>
-                  <CountdownTimer deadline={campaign.deadline} />
-                  <button
-                    className="w-full py-2 rounded-xl font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition text-white"
-                    onClick={() => !isFunded && setPledge(campaign.title)}
-                    disabled={isFunded}
-                  >
-                    {isFunded ? "Successfully Funded" : "Pledge Now"}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <>
+          <p className="text-sm text-gray-500 mb-4">{filtered.length} campaign{filtered.length !== 1 ? "s" : ""} found</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {paginated.map((campaign, i) => (
+              <CampaignCard
+                key={campaign.id}
+                campaign={campaign}
+                onPledge={(id) => setPledge(id)}
+                index={i}
+                query={query}
+              />
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-4 mt-10">
+              <button
+                onClick={() => setPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-4 py-2 rounded-xl bg-gray-800 text-sm text-gray-300 hover:bg-gray-700 disabled:opacity-30 transition"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-gray-400">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 rounded-xl bg-gray-800 text-sm text-gray-300 hover:bg-gray-700 disabled:opacity-30 transition"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       )}
 
-      {pledge && <PledgeModal campaignTitle={pledge} onClose={() => setPledge(null)} />}
+      {pledge && (
+        <PledgeModal
+          campaignTitle={ALL_CAMPAIGNS.find((c) => c.id === pledge)?.title ?? pledge}
+          onClose={() => setPledge(null)}
+        />
+      )}
     </>
   );
 }

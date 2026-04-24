@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { Loader2, CheckCircle, XCircle, CircleDot, FileSignature, Send, Clock } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, CircleDot, FileSignature, Send, Clock, FlaskConical } from "lucide-react";
 
-export type TxStatus = "idle" | "signing" | "submitting" | "confirming" | "success" | "error";
+export type TxStatus = "idle" | "simulating" | "signing" | "submitting" | "confirming" | "success" | "error";
 
 export interface TransactionStatusProps {
   status: TxStatus;
@@ -22,18 +22,20 @@ export function TransactionStatus({ status, txHash, errorMessage, onDismiss }: T
   }, [status, onDismiss]);
 
   const steps = [
-    { key: "idle", label: "Idle", icon: CircleDot },
-    { key: "signing", label: "Signing", icon: FileSignature },
+    { key: "idle",       label: "Idle",       icon: CircleDot },
+    { key: "simulating", label: "Simulating", icon: FlaskConical },
+    { key: "signing",    label: "Signing",    icon: FileSignature },
     { key: "submitting", label: "Submitting", icon: Send },
     { key: "confirming", label: "Confirming", icon: Clock },
   ];
 
   const getCurrentStepIndex = () => {
-    if (status === "idle") return 0;
-    if (status === "signing") return 1;
-    if (status === "submitting") return 2;
-    if (status === "confirming") return 3;
-    if (status === "success" || status === "error") return 3;
+    if (status === "idle")       return 0;
+    if (status === "simulating") return 1;
+    if (status === "signing")    return 2;
+    if (status === "submitting") return 3;
+    if (status === "confirming") return 4;
+    if (status === "success" || status === "error") return 4;
     return 0;
   };
 
@@ -42,17 +44,22 @@ export function TransactionStatus({ status, txHash, errorMessage, onDismiss }: T
   if (status === "idle") return null;
 
   return (
-    <div className="space-y-4 p-4 bg-gray-800/50 rounded-xl">
+    <div className="space-y-4 p-4 bg-gray-800/50 rounded-xl" aria-live="polite" aria-atomic="true">
       {/* Steps */}
-      <div className="flex items-center justify-between">
+      <ol className="flex items-center justify-between" aria-label="Transaction steps">
         {steps.map((step, index) => {
           const Icon = step.icon;
           const isCompleted = index < currentIndex;
           const isCurrent = index === currentIndex;
-          const isLoading = isCurrent && (status === "signing" || status === "submitting" || status === "confirming");
+          const isLoading =
+            isCurrent &&
+            (status === "simulating" ||
+              status === "signing" ||
+              status === "submitting" ||
+              status === "confirming");
 
           return (
-            <div key={step.key} className="flex items-center">
+            <li key={step.key} className="flex items-center" aria-label={`${step.label}: ${isCompleted ? "completed" : isCurrent ? "in progress" : "pending"}`}>
               <div
                 className={`flex items-center gap-2 ${
                   isCompleted
@@ -78,10 +85,10 @@ export function TransactionStatus({ status, txHash, errorMessage, onDismiss }: T
                   }`}
                 />
               )}
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ol>
 
       {/* Final state */}
       {status === "success" && (
@@ -94,6 +101,7 @@ export function TransactionStatus({ status, txHash, errorMessage, onDismiss }: T
                 href={`https://stellar.expert/explorer/testnet/tx/${txHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label="View transaction on Stellar Expert (opens in new tab)"
                 className="text-sm text-indigo-400 hover:underline"
               >
                 View on Stellar Expert →
@@ -113,6 +121,7 @@ export function TransactionStatus({ status, txHash, errorMessage, onDismiss }: T
           {onDismiss && (
             <button
               onClick={onDismiss}
+              aria-label="Dismiss transaction error"
               className="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm"
             >
               Dismiss
