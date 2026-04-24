@@ -8,6 +8,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountdownTimer } from "@/components/ui/CountdownTimer";
 import { ShareButton } from "@/components/ui/ShareButton";
 import { ContributionLeaderboard } from "@/components/ui/ContributionLeaderboard";
+import { EmbedCodeGenerator } from "@/components/ui/EmbedCodeGenerator";
 import { useCampaign } from "@/hooks/useCampaign";
 import { useWallet } from "@/context/WalletContext";
 import { CampaignActions } from "./CampaignActions";
@@ -25,15 +26,23 @@ function ContractIdRow({ contractId }: { contractId: string }) {
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-xl bg-gray-100 px-4 py-3 dark:bg-gray-900">
-      <span className="font-mono text-xs text-gray-500 break-all flex-1">{contractId}</span>
+      <span className="font-mono text-xs text-gray-500 break-all flex-1">
+        {contractId}
+      </span>
       <div className="relative flex items-center gap-2">
         <button
           onClick={handleCopy}
           aria-label="Copy contract ID"
           className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800 transition"
         >
-          {copied ? <Check size={13} className="text-green-500" /> : <Copy size={13} />}
-          <span className={cn(copied && "text-green-500")}>{copied ? "Copied!" : "Copy"}</span>
+          {copied ? (
+            <Check size={13} className="text-green-500" />
+          ) : (
+            <Copy size={13} />
+          )}
+          <span className={cn(copied && "text-green-500")}>
+            {copied ? "Copied!" : "Copy"}
+          </span>
         </button>
         <a
           href={`https://stellar.expert/explorer/testnet/contract/${contractId}`}
@@ -50,8 +59,16 @@ function ContractIdRow({ contractId }: { contractId: string }) {
 }
 
 export function CampaignDetailContent({ contractId }: { contractId: string }) {
-  const { info, stats, loading, error, refresh, applyOptimisticContribution, rollbackOptimistic } = useCampaign(contractId);
-  const { address } = useWallet();     
+  const {
+    info,
+    stats,
+    loading,
+    error,
+    refresh,
+    applyOptimisticContribution,
+    rollbackOptimistic,
+  } = useCampaign(contractId);
+  const { address } = useWallet();
 
   if (loading) {
     return (
@@ -152,6 +169,11 @@ export function CampaignDetailContent({ contractId }: { contractId: string }) {
         />
 
         <ShareButton campaignId={contractId} campaignTitle={info.title} />
+
+        <EmbedCodeGenerator
+          campaignId={contractId}
+          campaignTitle={info.title}
+        />
 
         {info.socialLinks.length > 0 && (
           <div className="space-y-1">
