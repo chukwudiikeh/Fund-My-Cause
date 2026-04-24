@@ -1,14 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { Wallet, Rocket, LogOut, Loader2, Sun, Moon, Menu, X, Bell } from "lucide-react";
+import { Wallet, Rocket, LogOut, Loader2, Sun, Moon, Menu, X, Bell, AlertTriangle } from "lucide-react";
 import { useWallet } from "@/context/WalletContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useNotifications } from "@/context/NotificationContext";
 import { NotificationDropdown } from "@/components/ui/NotificationDropdown";
-import { Wallet, Rocket, LogOut, Loader2, Sun, Moon, Menu, X, AlertTriangle } from "lucide-react";
-import { useWallet } from "@/context/WalletContext";
-import { useTheme } from "@/context/ThemeContext";
+import { WalletBalance } from "@/components/ui/WalletBalance";
 import { NETWORK_NAME } from "@/lib/constants";
 
 function truncate(addr: string) {
@@ -16,15 +14,11 @@ function truncate(addr: string) {
 }
 
 export function Navbar() {
-  const { address, xlmBalance, connect, disconnect, isConnecting, isAutoConnecting, error, networkMismatch, walletNetwork } = useWallet();
+  const { address, connect, disconnect, isConnecting, isAutoConnecting, error, networkMismatch, walletNetwork } = useWallet();
   const { theme, toggleTheme } = useTheme();
   const { unreadCount } = useNotifications();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-
-  const addressLabel = address
-    ? `${truncate(address)}${xlmBalance !== null ? ` · ${xlmBalance} XLM` : ""}`
-    : null;
 
   return (
     <div>
@@ -38,8 +32,11 @@ export function Navbar() {
       <div className="hidden md:flex items-center gap-3">
         {error && <span className="text-red-500 dark:text-red-400 text-sm">{error}</span>}
         {address ? (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600 dark:text-gray-300">{addressLabel}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col items-end">
+              <span className="text-xs text-gray-500 dark:text-gray-400">{truncate(address)}</span>
+              <WalletBalance address={address} />
+            </div>
             <button
               onClick={disconnect}
               aria-label="Disconnect wallet"
@@ -128,7 +125,10 @@ export function Navbar() {
           {error && <span className="text-red-500 dark:text-red-400 text-sm" role="alert">{error}</span>}
           {address ? (
             <div className="space-y-3">
-              <span className="text-sm text-gray-600 dark:text-gray-300 block">{addressLabel}</span>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-gray-500 dark:text-gray-400">{truncate(address)}</span>
+                <WalletBalance address={address} />
+              </div>
               <button
                 onClick={() => { disconnect(); setMobileMenuOpen(false); }}
                 aria-label="Disconnect wallet"
