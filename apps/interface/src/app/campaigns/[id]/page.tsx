@@ -12,7 +12,11 @@ import { TransactionHistory } from "@/components/ui/TransactionHistory";
 import { XlmAmount } from "@/components/ui/XlmAmount";
 import { fetchCampaign, getStaticCampaignIds } from "@/lib/soroban";
 import { fetchXlmPrice } from "@/lib/price";
-import { APP_BASE_URL, DEFAULT_HERO_IMAGE, CAMPAIGN_PAGE_REVALIDATE_SECONDS } from "@/lib/constants";
+import {
+  APP_BASE_URL,
+  DEFAULT_HERO_IMAGE,
+  CAMPAIGN_PAGE_REVALIDATE_SECONDS,
+} from "@/lib/constants";
 import { CampaignActions } from "./CampaignActions";
 import { CampaignDetailContent } from "./CampaignDetailContent";
 
@@ -53,7 +57,9 @@ export async function generateMetadata({
         description,
         url,
         siteName: "Fund-My-Cause",
-        images: [{ url: DEFAULT_HERO_IMAGE, width: 1200, height: 630, alt: c.title }],
+        images: [
+          { url: DEFAULT_HERO_IMAGE, width: 1200, height: 630, alt: c.title },
+        ],
         type: "website",
       },
       twitter: {
@@ -87,7 +93,8 @@ export default async function CampaignDetailPage({
   // Fetch XLM price in parallel — null if CoinGecko is unavailable
   const xlmPrice = await fetchXlmPrice();
 
-  const progress = campaign.goal > 0 ? (campaign.raised / campaign.goal) * 100 : 0;
+  const progress =
+    campaign.goal > 0 ? (campaign.raised / campaign.goal) * 100 : 0;
   const deadlinePassed = new Date(campaign.deadline) < new Date();
   const goalMet = campaign.raised >= campaign.goal;
 
@@ -108,13 +115,15 @@ export default async function CampaignDetailPage({
       </div>
 
       <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
-
         {/* Title + creator */}
         <div>
           <h1 className="text-3xl font-bold mb-2">{campaign.title}</h1>
           <p className="text-gray-600 dark:text-gray-500 text-sm">
             by{" "}
-            <span className="font-mono text-gray-500 dark:text-gray-400" title={campaign.creator}>
+            <span
+              className="font-mono text-gray-500 dark:text-gray-400"
+              title={campaign.creator}
+            >
               {truncate(campaign.creator)}
             </span>
           </p>
@@ -124,8 +133,12 @@ export default async function CampaignDetailPage({
         <div className="space-y-2">
           <ProgressBar progress={progress} />
           <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-            <span><XlmAmount xlm={campaign.raised} price={xlmPrice} /> raised</span>
-            <span><XlmAmount xlm={campaign.goal} price={xlmPrice} /> goal</span>
+            <span>
+              <XlmAmount xlm={campaign.raised} price={xlmPrice} /> raised
+            </span>
+            <span>
+              <XlmAmount xlm={campaign.goal} price={xlmPrice} /> goal
+            </span>
           </div>
         </div>
 
@@ -148,12 +161,14 @@ export default async function CampaignDetailPage({
         </div>
 
         {/* Description */}
-        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{campaign.description}</p>
+        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+          {campaign.description}
+        </p>
 
         {/* Share button */}
         <ShareTrigger campaignId={id} campaignTitle={campaign.title} />
         {/* Transaction history */}
-        <TransactionHistory contractId={id} />
+        <TransactionHistory contractId={id} campaignTitle={campaign.title} />
 
         {/* Share buttons */}
         <ShareButton campaignId={id} campaignTitle={campaign.title} />
