@@ -3,6 +3,7 @@ import "./globals.css";
 import { WalletProvider } from "@/context/WalletContext";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { NotificationProvider } from "@/context/NotificationContext";
 import { ReactQueryProvider } from "@/context/ReactQueryProvider";
 import { PageTransition } from "@/components/layout/PageTransition";
 
@@ -17,6 +18,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ThemeProvider>
           <ToastProvider>
+            <NotificationProvider>
+              <WalletProvider>{children}</WalletProvider>
+            </NotificationProvider>
             <ReactQueryProvider>
               <WalletProvider>{children}</WalletProvider>
             </ReactQueryProvider>
