@@ -6,7 +6,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { WalletGuard } from "@/components/WalletGuard";
 import { useWallet } from "@/context/WalletContext";
 import { buildInitializeTx, submitSignedTx } from "@/lib/soroban";
-import { Loader2, CheckCircle2, XCircle, FileText, X } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, FileText, X, Eye } from "lucide-react";
 import { uploadToPinata } from "@/lib/pinata";
 import {
   validateTitle,
@@ -20,6 +20,7 @@ import {
 } from "@/lib/validation";
 import { useCampaignDraft } from "@/hooks/useCampaignDraft";
 import { DraftIndicator } from "@/components/ui/DraftIndicator";
+import { CampaignPreview } from "@/components/ui/CampaignPreview";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -41,7 +42,16 @@ interface FormData {
 
 type TxStatus = "idle" | "pending" | "success" | "error";
 
-const STEPS = ["Basic Info", "Media", "Platform Config", "Review & Deploy"];
+const STEPS = [
+  "Basic Info",
+  "Media",
+  "Platform Config",
+  "Review & Deploy",
+  "Preview",
+];
+
+// Preview is step index 4 — rendered outside the narrow card
+const PREVIEW_STEP = 4;
 
 const INITIAL: FormData = {
   contractId: "",
@@ -369,6 +379,11 @@ function validateStep(step: number, data: FormData): string | null {
   return null;
 }
 
+/** Validate all steps before allowing preview or deploy. */
+function validateAllSteps(data: FormData): string | null {
+  return validateStep(0, data) ?? validateStep(2, data);
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function CreateCampaignPage() {
@@ -382,6 +397,7 @@ export default function CreateCampaignPage() {
   const [txHash, setTxHash] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
   const [showResumeBanner, setShowResumeBanner] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
 
   const { hasDraft, loadDraft, saveDraft, clearDraft, saveStatus, lastSaved } =
     useCampaignDraft({ ...data, step });
@@ -416,11 +432,27 @@ export default function CreateCampaignPage() {
       return;
     }
     setValidationError(null);
+    // Step 3 (Review & Deploy) → validate everything then enter preview
+    if (step === STEPS.length - 2) {
+      const allErr = validateAllSteps(data);
+      if (allErr) {
+        setValidationError(allErr);
+        return;
+      }
+      setShowPreview(true);
+      setStep(PREVIEW_STEP);
+      return;
+    }
     setStep((s) => s + 1);
   };
 
   const back = () => {
     setValidationError(null);
+    if (showPreview) {
+      setShowPreview(false);
+      setStep(STEPS.length - 2); // back to Review & Deploy
+      return;
+    }
     setStep((s) => s - 1);
   };
 
@@ -501,11 +533,17 @@ export default function CreateCampaignPage() {
             </button>
           </div>
         ) : (
-          <div className="max-w-xl mx-auto px-6 py-12">
+          <div
+            className={
+              showPreview
+                ? "max-w-4xl mx-auto px-6 py-12"
+                : "max-w-xl mx-auto px-6 py-12"
+            }
+          >
             <h1 className="text-3xl font-bold mb-4">Create Campaign</h1>
 
             {/* Resume Draft Banner */}
-            {hasDraft && showResumeBanner && (
+            {hasDraft && showResumeBanner && !showPreview && (
               <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800">
                 <FileText
                   size={16}
@@ -544,7 +582,13 @@ export default function CreateCampaignPage() {
                             : "bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-500"
                       }`}
                     >
-                      {i < step ? "✓" : i + 1}
+                      {i < step ? (
+                        "✓"
+                      ) : i === PREVIEW_STEP ? (
+                        <Eye size={14} />
+                      ) : (
+                        i + 1
+                      )}
                     </div>
                     <span className="text-xs text-gray-500 hidden sm:block">
                       {label}
@@ -559,66 +603,83 @@ export default function CreateCampaignPage() {
               ))}
             </div>
 
-            {/* Step content */}
-            <div className="bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">{STEPS[step]}</h2>
-                <DraftIndicator
-                  saveStatus={saveStatus}
-                  lastSaved={lastSaved}
-                  onSave={handleManualSave}
-                />
-              </div>
-
-              {step === 0 && <Step1 data={data} set={set} />}
-              {step === 1 && <Step2 data={data} set={set} />}
-              {step === 2 && <Step3 data={data} set={set} />}
-              {step === 3 && <Step4 data={data} />}
-
-              {validationError && (
-                <p className="text-red-500 dark:text-red-400 text-sm">
-                  {validationError}
-                </p>
-              )}
-
-              {txStatus === "error" && txError && (
-                <div className="flex items-start gap-2 text-red-500 dark:text-red-400 text-sm bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-800 rounded-xl p-3">
-                  <XCircle size={16} className="mt-0.5 shrink-0" />
-                  {txError}
-                </div>
-              )}
-
-              {/* Navigation */}
-              <div className="flex justify-between pt-2">
-                <button
-                  onClick={back}
-                  disabled={step === 0}
-                  className="px-4 py-2 rounded-xl text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 transition"
-                >
-                  Back
-                </button>
-
-                {step < STEPS.length - 1 ? (
-                  <button
-                    onClick={next}
-                    className="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-xl text-sm font-medium transition text-white"
-                  >
-                    Next
-                  </button>
-                ) : (
-                  <button
-                    onClick={deploy}
-                    disabled={txStatus === "pending" || networkMismatch}
-                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-xl text-sm font-medium transition disabled:opacity-50 text-white"
-                  >
-                    {txStatus === "pending" && (
-                      <Loader2 size={16} className="animate-spin" />
-                    )}
-                    {txStatus === "pending" ? "Deploying..." : "Sign & Deploy"}
-                  </button>
+            {/* Preview step — full-width, outside the narrow card */}
+            {showPreview ? (
+              <>
+                {txStatus === "error" && txError && (
+                  <div className="flex items-start gap-2 text-red-500 dark:text-red-400 text-sm bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-800 rounded-xl p-3 mb-4">
+                    <XCircle size={16} className="mt-0.5 shrink-0" />
+                    {txError}
+                  </div>
                 )}
+                <CampaignPreview
+                  data={{ ...data, creatorAddress: address ?? "" }}
+                  onEdit={back}
+                  onDeploy={deploy}
+                  deployDisabled={txStatus === "pending" || networkMismatch}
+                  deployPending={txStatus === "pending"}
+                />
+              </>
+            ) : (
+              /* Step content card */
+              <div className="bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">{STEPS[step]}</h2>
+                  <DraftIndicator
+                    saveStatus={saveStatus}
+                    lastSaved={lastSaved}
+                    onSave={handleManualSave}
+                  />
+                </div>
+
+                {step === 0 && <Step1 data={data} set={set} />}
+                {step === 1 && <Step2 data={data} set={set} />}
+                {step === 2 && <Step3 data={data} set={set} />}
+                {step === 3 && <Step4 data={data} />}
+
+                {validationError && (
+                  <p className="text-red-500 dark:text-red-400 text-sm">
+                    {validationError}
+                  </p>
+                )}
+
+                {txStatus === "error" && txError && (
+                  <div className="flex items-start gap-2 text-red-500 dark:text-red-400 text-sm bg-red-100 dark:bg-red-950/40 border border-red-300 dark:border-red-800 rounded-xl p-3">
+                    <XCircle size={16} className="mt-0.5 shrink-0" />
+                    {txError}
+                  </div>
+                )}
+
+                {/* Navigation */}
+                <div className="flex justify-between pt-2">
+                  <button
+                    onClick={back}
+                    disabled={step === 0}
+                    className="px-4 py-2 rounded-xl text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 transition"
+                  >
+                    Back
+                  </button>
+
+                  {step < STEPS.length - 2 ? (
+                    <button
+                      onClick={next}
+                      className="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-xl text-sm font-medium transition text-white"
+                    >
+                      Next
+                    </button>
+                  ) : (
+                    /* Step 3 (Review & Deploy) — "Preview" button leads to preview step */
+                    <button
+                      onClick={next}
+                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-xl text-sm font-medium transition text-white"
+                    >
+                      <Eye size={15} />
+                      Preview
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </WalletGuard>
