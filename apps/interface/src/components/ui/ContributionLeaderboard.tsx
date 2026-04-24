@@ -1,54 +1,82 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { fetchContributorList, type ContributorEntry } from "@/lib/soroban";
 import { formatXLM, formatAddress } from "@/lib/format";
+import { Trophy, ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react";
 
 interface Props {
   contractId: string;
   totalRaised: bigint;
   connectedAddress?: string | null;
+  pageSize?: number;
 }
 
 interface LeaderboardRow extends ContributorEntry {
   rank: number;
   pct: string;
   isYou: boolean;
+  isTopContributor: boolean;
 }
 
-export function ContributionLeaderboard({ contractId, totalRaised, connectedAddress }: Props) {
+export function ContributionLeaderboard({ 
+  contractId, 
+  totalRaised, 
+  connectedAddress,
+  pageSize = 10 
+}: Props) {
+  const [page, setPage] = useState(0);
+  const [showAnonymous, setShowAnonymous] = useState(false);
+
   const { data: rows = [], isLoading } = useQuery<LeaderboardRow[]>({
-    queryKey: ["leaderboard", contractId],
+    queryKey: ["leaderboard", contractId, page, pageSize],
     queryFn: async () => {
-      const entries = await fetchContributorList(contractId, 0, 10);
+      const entries = await fetchContributorList(contractId, page, pageSize);
       const sorted = [...entries].sort((a, b) => (b.amount > a.amount ? 1 : -1));
       return sorted.map((e, i) => ({
         ...e,
-        rank: i + 1,
+        rank: page * pageSize + i + 1,
         pct:
           totalRaised > 0n
             ? ((Number(e.amount) / Number(totalRaised)) * 100).toFixed(1) + "%"
             : "0%",
         isYou: !!connectedAddress && e.address === connectedAddress,
+        isTopContributor: page === 0 && i === 0,
       }));
     },
     staleTime: 30_000,
   });
 
-  if (isLoading) return <p className="text-sm text-gray-500 animate-pulse">Loading leaderboard…</p>;
+  if (isLoading) return <p className="text-sm text-gray-500 dark:text-gray-400 animate-pulse">Loading leaderboard…</p>;
   if (rows.length === 0) return null;
+
+  const hasNextPage = rows.length === pageSize;
+  const hasPrevPage = page > 0;
 
   return (
     <section aria-labelledby="leaderboard-heading" className="space-y-3">
-      <h3 id="leaderboard-heading" className="text-base font-semibold">Top Contributors</h3>
-      <div className="overflow-x-auto rounded-xl border border-gray-800">
+      <div className="flex items-center justify-between">
+        <h3 id="leaderboard-heading" className="text-base font-semibold text-gray-900 dark:text-white">
+          Top Contributors
+        </h3>
+        <button
+          onClick={() => setShowAnonymous(!showAnonymous)}
+          className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition"
+          aria-label={showAnonymous ? "Show addresses" : "Hide addresses"}
+        >
+          {showAnonymous ? <Eye size={14} /> : <EyeOff size={14} />}
+          {showAnonymous ? "Show" : "Hide"}
+        </button>
+      </div>
+      
+      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
         <table className="w-full text-sm" aria-label="Contribution leaderboard">
           <thead>
-            <tr className="text-left text-xs text-gray-500 border-b border-gray-800">
+            <tr className="text-left text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
               <th scope="col" className="px-4 py-2">#</th>
-              <th scope="col" className="px-4 py-2">Address</th>
+              <th scope="col" className="px-4 py-2">Contributor</th>
               <th scope="col" className="px-4 py-2 text-right">Amount</th>
               <th scope="col" className="px-4 py-2 text-right">Share</th>
             </tr>
@@ -58,27 +86,70 @@ export function ContributionLeaderboard({ contractId, totalRaised, connectedAddr
               <tr
                 key={row.address}
                 className={cn(
-                  "border-b border-gray-800 last:border-0",
-                  row.isYou && "bg-indigo-950/40"
+                  "border-b border-gray-200 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition",
+                  row.isYou && "bg-indigo-50 dark:bg-indigo-950/40"
                 )}
                 aria-current={row.isYou ? "true" : undefined}
               >
-                <td className="px-4 py-2 text-gray-400">{row.rank}</td>
-                <td className="px-4 py-2 font-mono text-gray-300">
-                  {formatAddress(row.address)}
-                  {row.isYou && (
-                    <span className="ml-2 text-xs text-indigo-400 font-semibold" aria-label="your entry">
-                      You
-                    </span>
-                  )}
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                  <div className="flex items-center gap-1">
+                    {row.rank}
+                    {row.isTopContributor && (
+                      <Trophy size={14} className="text-yellow-500" aria-label="Top contributor" />
+                    )}
+                  </div>
                 </td>
-                <td className="px-4 py-2 text-right text-white">{formatXLM(row.amount)}</td>
-                <td className="px-4 py-2 text-right text-gray-400">{row.pct}</td>
+                <td className="px-4 py-3 font-mono text-gray-700 dark:text-gray-300">
+                  <div className="flex items-center gap-2">
+                    {showAnonymous ? "Anonymous" : formatAddress(row.address)}
+                    {row.isYou && (
+                      <span className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold" aria-label="your entry">
+                        You
+                      </span>
+                    )}
+                    {row.isTopContributor && (
+                      <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400">
+                        TOP
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-right text-gray-900 dark:text-white font-medium">
+                  {formatXLM(row.amount)}
+                </td>
+                <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">{row.pct}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {(hasNextPage || hasPrevPage) && (
+        <div className="flex items-center justify-between text-sm">
+          <button
+            onClick={() => setPage(p => p - 1)}
+            disabled={!hasPrevPage}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
+            aria-label="Previous page"
+          >
+            <ChevronLeft size={16} />
+            Previous
+          </button>
+          <span className="text-gray-500 dark:text-gray-400">
+            Page {page + 1}
+          </span>
+          <button
+            onClick={() => setPage(p => p + 1)}
+            disabled={!hasNextPage}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
+            aria-label="Next page"
+          >
+            Next
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
     </section>
   );
 }
