@@ -1,14 +1,18 @@
 "use client";
 
 import React, { useState } from "react";
-import { Wallet, Rocket, LogOut, Loader2, Sun, Moon, Menu, X } from "lucide-react";
+import { Wallet, Rocket, LogOut, Loader2, Sun, Moon, Menu, X, Bell } from "lucide-react";
 import { useWallet } from "@/context/WalletContext";
 import { useTheme } from "@/context/ThemeContext";
+import { useNotifications } from "@/context/NotificationContext";
+import { NotificationDropdown } from "@/components/ui/NotificationDropdown";
 
 export function Navbar() {
   const { address, connect, disconnect, isConnecting, error } = useWallet();
   const { theme, toggleTheme } = useTheme();
+  const { unreadCount } = useNotifications();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
 
   return (
     <nav className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
@@ -42,6 +46,24 @@ export function Navbar() {
             Connect Wallet
           </button>
         )}
+
+        {/* Notification bell */}
+        <div className="relative">
+          <button
+            onClick={() => setNotifOpen((o) => !o)}
+            className="relative p-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+            aria-label="Notifications"
+          >
+            <Bell size={18} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-indigo-600 text-white text-[10px] font-bold px-1">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+          </button>
+          <NotificationDropdown open={notifOpen} onClose={() => setNotifOpen(false)} />
+        </div>
+
         <button
           onClick={toggleTheme}
           className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
@@ -53,6 +75,23 @@ export function Navbar() {
 
       {/* Mobile menu button */}
       <div className="flex md:hidden items-center gap-2">
+        {/* Notification bell (mobile) */}
+        <div className="relative">
+          <button
+            onClick={() => setNotifOpen((o) => !o)}
+            className="relative p-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+            aria-label="Notifications"
+          >
+            <Bell size={18} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-indigo-600 text-white text-[10px] font-bold px-1">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
+          </button>
+          <NotificationDropdown open={notifOpen} onClose={() => setNotifOpen(false)} />
+        </div>
+
         <button
           onClick={toggleTheme}
           className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition"

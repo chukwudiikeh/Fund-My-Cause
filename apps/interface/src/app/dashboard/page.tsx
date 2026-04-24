@@ -14,7 +14,8 @@ import {
   CampaignData,
   CampaignStatus,
 } from "@/lib/soroban";
-import { Loader2, PlusCircle } from "lucide-react";
+import { Loader2, PlusCircle, BarChart2 } from "lucide-react";
+import { AnalyticsDashboard } from "@/components/ui/AnalyticsDashboard";
 
 // ── Local storage key for campaigns created by this wallet ───────────────────
 // The app stores { address -> contractId[] } in localStorage after deploy.
@@ -198,6 +199,7 @@ export default function DashboardPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<CampaignData | null>(null);
+  const [activeTab, setActiveTab] = useState<"campaigns" | "analytics">("campaigns");
 
   const loadCampaigns = useCallback(async (addr: string) => {
     const ids = getContractIds(addr);
@@ -273,7 +275,7 @@ export default function DashboardPage() {
       <Navbar />
 
       <div className="max-w-4xl mx-auto px-6 py-12">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold">My Campaigns</h1>
           <button
             onClick={() => router.push("/create")}
@@ -283,17 +285,39 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {loading && (
+        {/* Tabs */}
+        <div className="flex gap-1 mb-6 bg-gray-900 rounded-xl p-1 w-fit">
+          <button
+            onClick={() => setActiveTab("campaigns")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+              activeTab === "campaigns" ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <PlusCircle size={14} /> Campaigns
+          </button>
+          <button
+            onClick={() => setActiveTab("analytics")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+              activeTab === "analytics" ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-white"
+            }`}
+          >
+            <BarChart2 size={14} /> Analytics
+          </button>
+        </div>
+
+        {activeTab === "analytics" && <AnalyticsDashboard campaigns={campaigns} />}
+
+        {activeTab === "campaigns" && loading && (
           <div className="flex justify-center py-20">
             <Loader2 size={32} className="animate-spin text-indigo-400" />
           </div>
         )}
 
-        {!loading && loadError && (
+        {activeTab === "campaigns" && !loading && loadError && (
           <p className="text-yellow-400 text-sm mb-4">{loadError}</p>
         )}
 
-        {!loading && campaigns.length === 0 && (
+        {activeTab === "campaigns" && !loading && campaigns.length === 0 && (
           <div className="text-center py-20 text-gray-500">
             <p>No campaigns found for this wallet.</p>
             <button onClick={() => router.push("/create")} className="mt-4 text-indigo-400 hover:text-indigo-300 text-sm transition">
@@ -302,6 +326,7 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {activeTab === "campaigns" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {campaigns.map((c) => (
             <CampaignCard
@@ -313,6 +338,7 @@ export default function DashboardPage() {
             />
           ))}
         </div>
+        )}
       </div>
 
       {editTarget && (
