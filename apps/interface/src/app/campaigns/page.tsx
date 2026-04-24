@@ -65,39 +65,55 @@ import { Search } from "lucide-react";
 const ALL_CAMPAIGNS: Campaign[] = [
   {
     id: "1",
+    contractId: "1",
     title: "Eco-Friendly Water Purification",
     description: "A compact, solar-powered water purification system for off-grid communities.",
+    creator: "GABC1234ECOFRIENDLY",
     raised: 15400,
     goal: 20000,
     deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
     image: DEFAULT_CAMPAIGN_IMAGE,
+    status: "Active",
+    token: "XLM",
   },
   {
     id: "2",
+    contractId: "2",
     title: "Open Source AI Education Platform",
     description: "Democratizing AI education with free, high-quality interactive courses for everyone.",
+    creator: "GDEF5678AIEDUCATION",
     raised: 8200,
     goal: 50000,
     deadline: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString(),
     image: DEFAULT_CAMPAIGN_IMAGE_ALT_1,
+    status: "Active",
+    token: "XLM",
   },
   {
     id: "3",
+    contractId: "3",
     title: "Community Solar Microgrid",
     description: "Empowering neighborhoods to generate and share sustainable solar energy.",
+    creator: "GHIJ9012SOLARGRID",
     raised: 45000,
     goal: 45000,
     deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
     image: DEFAULT_CAMPAIGN_IMAGE_ALT_2,
+    status: "Successful",
+    token: "XLM",
   },
   {
     id: "4",
+    contractId: "4",
     title: "Decentralized Medical Records",
     description: "Secure, patient-owned health records on the Stellar blockchain.",
+    creator: "GKLM3456MEDRECORDS",
     raised: 3000,
     goal: 30000,
     deadline: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     image: DEFAULT_CAMPAIGN_IMAGE_ALT_3,
+    status: "Active",
+    token: "XLM",
   },
 ];
 
@@ -162,6 +178,24 @@ function CampaignsInner() {
     router.replace(`/campaigns?${params.toString()}`, { scroll: false });
   };
 
+  // Local input value for debouncing — keeps the input responsive while
+  // delaying the URL update (and re-render) until the user stops typing.
+  const [inputValue, setInputValue] = useState(query);
+
+  // Sync local input when the URL query param changes externally (e.g. back/forward).
+  React.useEffect(() => {
+    setInputValue(query);
+  }, [query]);
+
+  // Debounce: push to URL 300 ms after the user stops typing.
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setParam("q", inputValue);
+    }, 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputValue]);
+
   const setPage = (p: number) => {
     const params = new URLSearchParams(searchParams.toString());
     if (p === 1) params.delete("page"); else params.set("page", String(p));
@@ -174,7 +208,8 @@ function CampaignsInner() {
         (c) =>
           !query ||
           c.title.toLowerCase().includes(query.toLowerCase()) ||
-          c.description.toLowerCase().includes(query.toLowerCase()),
+          c.description.toLowerCase().includes(query.toLowerCase()) ||
+          c.creator.toLowerCase().includes(query.toLowerCase()),
       ),
       filter,
     ),
@@ -195,8 +230,9 @@ function CampaignsInner() {
           <input
             type="text"
             placeholder="Search campaigns..."
-            value={query}
-            onChange={(e) => setParam("q", e.target.value)}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            aria-label="Search campaigns"
             className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl pl-9 pr-4 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-indigo-500"
           />
         </div>
@@ -262,6 +298,7 @@ function CampaignsInner() {
                 campaign={campaign}
                 onPledge={(id) => setPledge(id)}
                 index={i}
+                query={query}
               />
             ))}
           </div>

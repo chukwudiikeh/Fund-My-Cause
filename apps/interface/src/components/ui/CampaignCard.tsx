@@ -16,6 +16,27 @@ export interface CampaignCardProps {
   xlmPrice?: number | null;
   /** Stagger index for slide-up animation on listing page */
   index?: number;
+  /** Search query for highlighting matching text */
+  query?: string;
+}
+
+function Highlight({ text, query }: { text: string; query?: string }) {
+  if (!query) return <>{text}</>;
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+  const parts = text.split(regex);
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark key={i} className="bg-yellow-200 dark:bg-yellow-700 text-inherit rounded px-0.5">
+            {part}
+          </mark>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
 }
 
 function StatusBadge({ status }: { status: "funded" | "ended" }) {
@@ -33,7 +54,7 @@ function StatusBadge({ status }: { status: "funded" | "ended" }) {
   );
 }
 
-export function CampaignCard({ campaign, onPledge, xlmPrice = null, index = 0 }: CampaignCardProps) {
+export function CampaignCard({ campaign, onPledge, xlmPrice = null, index = 0, query }: CampaignCardProps) {
   const progress = campaign.goal > 0 ? (campaign.raised / campaign.goal) * 100 : 0;
   const isFunded = progress >= 100;
   const isEnded = !isFunded && new Date(campaign.deadline) < new Date();
@@ -61,8 +82,8 @@ export function CampaignCard({ campaign, onPledge, xlmPrice = null, index = 0 }:
         {isEnded && <StatusBadge status="ended" />}
       </div>
       <div className="p-5 space-y-3">
-        <h2 className="text-lg font-semibold">{campaign.title}</h2>
-        <p className="text-gray-400 text-sm line-clamp-2">{campaign.description}</p>
+        <h2 className="text-lg font-semibold"><Highlight text={campaign.title} query={query} /></h2>
+        <p className="text-gray-400 text-sm line-clamp-2"><Highlight text={campaign.description} query={query} /></p>
         <ProgressBar progress={progress} />
         <div className="flex justify-between text-sm text-gray-400">
           <span>{formatXlm(campaign.raised, xlmPrice)} raised</span>
