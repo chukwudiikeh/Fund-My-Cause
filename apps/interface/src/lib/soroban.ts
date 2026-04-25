@@ -33,6 +33,7 @@ export type {
 const SOROBAN_RPC_URL =
   process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ??
   "https://soroban-testnet.stellar.org";
+const RPC_URL = SOROBAN_RPC_URL;
 const HORIZON_URL =
   process.env.NEXT_PUBLIC_HORIZON_URL ?? "https://horizon-testnet.stellar.org";
 const NETWORK_PASSPHRASE = Networks.TESTNET;
@@ -93,6 +94,14 @@ function toBooleanValue(value: unknown, fallback = false): boolean {
 function toStringArrayValue(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.map((item) => toStringValue(item)).filter(Boolean);
+}
+
+function stroopsToXlm(stroops: bigint): number {
+  return Number(stroops) / 1e7;
+}
+
+function ledgerTimestampToIso(ts: bigint): string {
+  return new Date(Number(ts) * 1000).toISOString();
 }
 
 function normalizeStatus(value: unknown): CampaignStatus {
@@ -605,3 +614,44 @@ function parseContributeAmount(op: HorizonOperation): number | null {
   // still appears (amount shown as "—")
   return 0;
 }
+
+/**
+ * Fetch up to `limit` contribution records for a campaign contract via Horizon.
+ * Pass limit=0 to fetch all available records (up to Horizon's page cap of 200).
+ */
+export async function fetchTransactionHistory(
+  contractId: string,
+  limit = 10,
+): Promise<ContributionRecord[]> {
+  try {
+    const url =
+      `${HORIZON_URL}/accounts/${contractId}/operations` +
+      `?order=desc&limit=${limit > 0 ? Math.min(limit, 200) : 200}&include_failed=false`;
+
+    const res = await fetch(url);
+    if (!res.ok) return [];
+
+    const page: HorizonOperationsPage = await res.json();
+    const ops = page._embedded?.records ?? [];
+
+    const records: ContributionRecord[] = [];
+    for (const op of ops) {
+      if (op.type !== "invoke_host_function") continue;
+      const amount = parseContributeAmount(op);
+      if (amount === null) continue;
+      records.push({
+        txHash: op.transaction_hash,
+        contributor: op.source_account,
+        amountXlm: amount,
+        timestamp: op.created_at,
+      });
+    }
+    return records;
+  } catch {
+    return [];
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+// ── RPC URL alias ─────────────────────────────────────────────────────────────
