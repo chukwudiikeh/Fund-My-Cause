@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Navbar } from "@/components/layout/Navbar";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountdownTimer } from "@/components/ui/CountdownTimer";
+import { RecommendedSection } from "@/components/ui/RecommendedSection";
 import { Rocket, Users, Coins, ArrowRight, PlusCircle } from "lucide-react";
 import { formatTimeLeft } from "@/lib/format";
 import {
@@ -194,6 +195,8 @@ export default function Home() {
       </section>
 
       {/* ── How It Works ── */}
+      <RecommendedSection />
+
       <section className="bg-gray-900/50 border-t border-gray-800">
         <div className="max-w-4xl mx-auto px-6 py-16 text-center">
           <h2 className="text-2xl font-bold mb-10">How It Works</h2>
@@ -226,6 +229,9 @@ export default function Home() {
             </Link>
             <Link href="/dashboard" className="hover:text-white transition">
               Dashboard
+            </Link>
+            <Link href="/bookmarks" className="hover:text-white transition">
+              Bookmarks
             </Link>
             <a
               href="https://developers.stellar.org"

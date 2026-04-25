@@ -6,6 +6,8 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { ReactQueryProvider } from "@/context/ReactQueryProvider";
 import { PageTransition } from "@/components/layout/PageTransition";
+import { ComparisonProvider } from "@/context/ComparisonContext";
+import { BookmarkProvider } from "@/context/BookmarkContext";
 
 export const metadata: Metadata = {
   title: "Fund-My-Cause",
@@ -19,11 +21,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <ToastProvider>
             <NotificationProvider>
-              <WalletProvider>{children}</WalletProvider>
+              <ComparisonProvider>
+                <BookmarkProvider>
+                  <WalletProvider>{children}</WalletProvider>
+                </BookmarkProvider>
+              </ComparisonProvider>
             </NotificationProvider>
-            <ReactQueryProvider>
-              <WalletProvider>{children}</WalletProvider>
-            </ReactQueryProvider>
           </ToastProvider>
         </ThemeProvider>
       </body>

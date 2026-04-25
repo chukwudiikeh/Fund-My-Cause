@@ -3,11 +3,14 @@
 import React from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { Bookmark, GitCompare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { CountdownTimer } from "@/components/ui/CountdownTimer";
 import { formatXlm } from "@/lib/price";
 import type { Campaign } from "@/types/campaign";
+import { useComparison } from "@/context/ComparisonContext";
+import { useBookmarks } from "@/context/BookmarkContext";
 
 export interface CampaignCardProps {
   campaign: Campaign;
@@ -60,6 +63,12 @@ export function CampaignCard({ campaign, onPledge, xlmPrice = null, index = 0, q
   const isEnded = !isFunded && new Date(campaign.deadline) < new Date();
   const isDisabled = isFunded || isEnded;
 
+  const { toggle: toggleCompare, isSelected, selected } = useComparison();
+  const { toggle: toggleBookmark, isBookmarked } = useBookmarks();
+  const compared = isSelected(campaign.id);
+  const bookmarked = isBookmarked(campaign.id);
+  const compareDisabled = !compared && selected.length >= 4;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
@@ -80,6 +89,20 @@ export function CampaignCard({ campaign, onPledge, xlmPrice = null, index = 0, q
         </div>
         {isFunded && <StatusBadge status="funded" />}
         {isEnded && <StatusBadge status="ended" />}
+        {/* Video indicator */}
+        {campaign.videoUrl && (
+          <span className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
+            ▶ Video
+          </span>
+        )}
+        {/* Bookmark button */}
+        <button
+          onClick={(e) => { e.stopPropagation(); toggleBookmark(campaign.id); }}
+          aria-label={bookmarked ? "Remove bookmark" : "Bookmark campaign"}
+          className="absolute top-3 right-3 p-1.5 rounded-full bg-gray-900/80 hover:bg-gray-800 transition"
+        >
+          <Bookmark size={15} className={cn(bookmarked ? "fill-indigo-400 text-indigo-400" : "text-gray-400")} />
+        </button>
       </div>
       <div className="p-5 space-y-3">
         <h2 className="text-lg font-semibold"><Highlight text={campaign.title} query={query} /></h2>
@@ -90,6 +113,18 @@ export function CampaignCard({ campaign, onPledge, xlmPrice = null, index = 0, q
           <span>{formatXlm(campaign.goal, xlmPrice)} goal</span>
         </div>
         <CountdownTimer deadline={campaign.deadline} />
+        {/* Compare checkbox */}
+        <label className={cn("flex items-center gap-2 text-xs cursor-pointer select-none", compareDisabled && "opacity-40 cursor-not-allowed")}>
+          <input
+            type="checkbox"
+            checked={compared}
+            disabled={compareDisabled}
+            onChange={() => toggleCompare(campaign.id)}
+            className="accent-indigo-500 w-3.5 h-3.5"
+          />
+          <GitCompare size={12} className="text-gray-400" />
+          <span className="text-gray-400">Compare</span>
+        </label>
         <button
           className="w-full py-2 rounded-xl font-medium bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
           onClick={() => onPledge?.(campaign.id)}

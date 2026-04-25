@@ -42,4 +42,10 @@ export interface Campaign {
 
   // Milestones
   milestones?: Milestone[];
+
+  // Video
+  videoUrl?: string;
+
+  // Category (for recommendations)
+  category?: string;
 }
