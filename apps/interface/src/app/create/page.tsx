@@ -35,6 +35,7 @@ interface FormData {
   minContribution: string;
   // Step 2
   imageUrl: string;
+  videoUrl: string;
   // Step 3
   feeAddress: string;
   feeBps: string;
@@ -62,6 +63,7 @@ const INITIAL: FormData = {
   deadline: "",
   minContribution: "1",
   imageUrl: "",
+  videoUrl: "",
   feeAddress: "",
   feeBps: "",
 };
@@ -266,6 +268,19 @@ function Step2({
           Stored as: {data.imageUrl}
         </p>
       )}
+
+      <Field label="Video URL (optional — YouTube, Vimeo, or direct .mp4)">
+        <input
+          type="url"
+          placeholder="https://youtube.com/watch?v=..."
+          value={data.videoUrl}
+          onChange={(e) => set("videoUrl", e.target.value)}
+          className={inputCls}
+        />
+        {data.videoUrl && !/^https?:\/\/.+/i.test(data.videoUrl) && (
+          <p className="text-red-400 text-xs mt-1">Enter a valid URL starting with https://</p>
+        )}
+      </Field>
     </div>
   );
 }

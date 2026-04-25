@@ -13,6 +13,9 @@ import { useCampaign } from "@/hooks/useCampaign";
 import { useWallet } from "@/context/WalletContext";
 import { CampaignActions } from "./CampaignActions";
 import { formatXLM, formatAddress } from "@/lib/format";
+import { SimilarCampaigns } from "@/components/ui/SimilarCampaigns";
+import { VideoPlayer } from "@/components/ui/VideoPlayer";
+import { ALL_CAMPAIGNS } from "@/lib/campaigns";
 
 function ContractIdRow({ contractId }: { contractId: string }) {
   const [copied, setCopied] = useState(false);
@@ -162,6 +165,12 @@ export function CampaignDetailContent({ contractId }: { contractId: string }) {
           {info.description}
         </p>
 
+        {/* Video player — show if campaign has a videoUrl in mock data */}
+        {(() => {
+          const mockCampaign = ALL_CAMPAIGNS.find((c) => c.id === contractId);
+          return mockCampaign?.videoUrl ? <VideoPlayer url={mockCampaign.videoUrl} /> : null;
+        })()}
+
         <ContributionLeaderboard
           contractId={contractId}
           totalRaised={stats.totalRaised}
@@ -205,6 +214,8 @@ export function CampaignDetailContent({ contractId }: { contractId: string }) {
           onOptimisticContribute={applyOptimisticContribution}
           onRollbackOptimistic={rollbackOptimistic}
         />
+
+        <SimilarCampaigns campaignId={contractId} />
       </div>
     </>
   );
