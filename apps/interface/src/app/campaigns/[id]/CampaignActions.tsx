@@ -73,7 +73,10 @@ export function CampaignActions({
     isCreator &&
     (campaignStatus === "Successful" || (deadlinePassed && goalMet && campaignStatus === "Active"));
   const canRefund =
-    !!address && deadlinePassed && !goalMet && userContribution > 0 && campaignStatus !== "Refunded";
+    !!address &&
+    userContribution > 0 &&
+    campaignStatus !== "Refunded" &&
+    (campaignStatus === "Cancelled" || (deadlinePassed && !goalMet));
 
   async function handleWithdraw() {
     if (!address || pendingTx) return;
