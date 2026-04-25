@@ -48,4 +48,34 @@ export interface Campaign {
 
   // Category (for recommendations)
   category?: string;
+
+  // FAQ
+  faqs?: FAQ[];
+
+  // Team members
+  teamMembers?: TeamMember[];
+}
+
+export interface FAQ {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  role: string;
+  bio?: string;
+  avatarUrl?: string;
+  profileUrl?: string;
+}
+
+export interface TrustSignalData {
+  isVerified: boolean;
+  campaignCount: number;
+  accountAgeDays: number;
+  backerCount: number;
+  isAudited: boolean;
+  auditUrl?: string;
 }
