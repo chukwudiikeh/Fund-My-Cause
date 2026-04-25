@@ -18,6 +18,7 @@ import { VideoPlayer } from "@/components/ui/VideoPlayer";
 import { FAQAccordion } from "@/components/ui/FAQAccordion";
 import { TeamMemberCard } from "@/components/ui/TeamMemberCard";
 import { TrustSignals } from "@/components/ui/TrustSignals";
+import { ActivityFeed, type ActivityItem } from "@/components/ui/ActivityFeed";
 import { ALL_CAMPAIGNS } from "@/lib/campaigns";
 
 function ContractIdRow({ contractId }: { contractId: string }) {
@@ -62,6 +63,42 @@ function ContractIdRow({ contractId }: { contractId: string }) {
       </div>
     </div>
   );
+}
+
+/** Build a simple activity feed from campaign stats (contributions) + mock milestones/updates */
+function buildActivities(
+  stats: { totalRaised: bigint; goal: bigint; contributorCount: number } | null,
+  contractId: string,
+): ActivityItem[] {
+  if (!stats) return [];
+  const items: ActivityItem[] = [];
+
+  // Synthetic contribution entry representing the aggregate
+  if (stats.totalRaised > 0n && stats.contributorCount > 0) {
+    items.push({
+      id: `contrib-${contractId}`,
+      type: "contribution",
+      timestamp: Date.now() - 60_000,
+      contributor: "GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN",
+      amount: stats.totalRaised / BigInt(Math.max(stats.contributorCount, 1)),
+    });
+  }
+
+  // Milestone at 25%, 50%, 75%
+  const pct = stats.goal > 0n ? Number((stats.totalRaised * 100n) / stats.goal) : 0;
+  for (const threshold of [25, 50, 75]) {
+    if (pct >= threshold) {
+      items.push({
+        id: `milestone-${threshold}-${contractId}`,
+        type: "milestone",
+        timestamp: Date.now() - threshold * 1000,
+        milestoneTitle: `${threshold}% funded`,
+        milestonePercent: threshold,
+      });
+    }
+  }
+
+  return items.sort((a, b) => b.timestamp - a.timestamp);
 }
 
 export function CampaignDetailContent({ contractId }: { contractId: string }) {
@@ -178,6 +215,12 @@ export function CampaignDetailContent({ contractId }: { contractId: string }) {
           contractId={contractId}
           totalRaised={stats.totalRaised}
           connectedAddress={address}
+        />
+
+        <ActivityFeed
+          contractId={contractId}
+          activities={buildActivities(stats, contractId)}
+          pollInterval={30_000}
         />
 
         <ShareButton campaignId={contractId} campaignTitle={info.title} />
