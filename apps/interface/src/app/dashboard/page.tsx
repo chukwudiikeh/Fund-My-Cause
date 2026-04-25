@@ -11,6 +11,18 @@ import { DeadlineExtensionModal } from "@/components/ui/DeadlineExtensionModal";
 import { AnalyticsDashboard } from "@/components/ui/AnalyticsDashboard";
 import { CancelCampaignModal } from "@/components/ui/CancelCampaignModal";
 import { formatXLM } from "@/lib/format";
+import { useWallet } from "@/context/WalletContext";
+import { useNotifications } from "@/context/NotificationContext";
+import { useCampaign } from "@/hooks/useCampaign";
+import type { CampaignStatus } from "@/types/soroban";
+import {
+  buildWithdrawTx,
+  buildCancelTx,
+  buildPauseTx,
+  buildUnpauseTx,
+  buildUpdateMetadataTx,
+  submitSignedTx,
+} from "@/lib/soroban";
 
 const REGISTRY_KEY = "fmc:campaigns";
 
@@ -164,30 +176,43 @@ function DashboardCampaignCard({
   actionPending,
   onAction,
   onCancel,
+  onPauseToggle,
   onEdit,
   onExtend,
   refreshNonce,
 }: {
   contractId: string;
   actionPending: string | null;
-  onAction: (
-    contractId: string,
-    action: "withdraw" | "cancel",
-  ) => Promise<void>;
+  onAction: (contractId: string, action: "withdraw" | "cancel") => Promise<void>;
   onCancel: (contractId: string, title: string) => void;
+  onPauseToggle: (contractId: string, currentlyPaused: boolean) => Promise<void>;
   onEdit: (campaign: EditableCampaign) => void;
   onExtend: (contractId: string, currentDeadline: string) => void;
   refreshNonce: number;
 }) {
-  const fmtXlm = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  const progress = campaign.goal > 0 ? Math.min(100, (campaign.raised / campaign.goal) * 100) : 0;
-  const deadline = new Date(campaign.deadline).toLocaleDateString();
-  const isExpired = new Date(campaign.deadline) < new Date();
+  const { info, stats, loading } = useCampaign(contractId);
 
-  const canWithdraw = campaign.status === "Successful" || (isExpired && campaign.raised >= campaign.goal);
-  const canCancel = campaign.status === "Active";
-  const canEdit = campaign.status === "Active";
-  const isPending = (action: string) => actionPending === `${campaign.contractId}:${action}`;
+  if (loading || !info || !stats) {
+    return (
+      <div className="flex h-40 items-center justify-center rounded-2xl border border-gray-800 bg-gray-900">
+        <Loader2 size={20} className="animate-spin text-gray-500" />
+      </div>
+    );
+  }
+
+  const fmtXlm = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  const raisedXlm = Number(stats.totalRaised) / 1e7;
+  const goalXlm = Number(stats.goal) / 1e7;
+  const progress = goalXlm > 0 ? Math.min(100, (raisedXlm / goalXlm) * 100) : 0;
+  const deadline = new Date(Number(info.deadline) * 1000).toLocaleDateString();
+  const isExpired = Number(info.deadline) * 1000 < Date.now();
+
+  const canWithdraw = info.status === "Successful" || (isExpired && raisedXlm >= goalXlm);
+  const canCancel = info.status === "Active";
+  const canPause = info.status === "Active";
+  const canUnpause = info.status === "Paused";
+  const canEdit = info.status === "Active";
+  const isPending = (action: string) => actionPending === `${contractId}:${action}`;
 
   return (
     <div className="space-y-3 rounded-2xl border border-gray-800 bg-gray-900 p-5">
@@ -197,8 +222,8 @@ function DashboardCampaignCard({
       </div>
       <ProgressBar progress={progress} />
       <div className="flex justify-between text-sm text-gray-400">
-        <span>{fmtXlm(campaign.raised)} XLM raised</span>
-        <span>Goal: {fmtXlm(campaign.goal)} XLM</span>
+        <span>{fmtXlm(raisedXlm)} XLM raised</span>
+        <span>Goal: {fmtXlm(goalXlm)} XLM</span>
       </div>
       <p className="text-xs text-gray-500">Deadline: {deadline}</p>
       <p className="truncate font-mono text-xs text-gray-600">{contractId}</p>
@@ -209,9 +234,7 @@ function DashboardCampaignCard({
             disabled={!!actionPending}
             className="flex items-center gap-1 rounded-lg bg-green-700 px-3 py-1.5 text-xs font-medium transition hover:bg-green-600 disabled:opacity-50"
           >
-            {isPending("withdraw") && (
-              <Loader2 size={12} className="animate-spin" />
-            )}
+            {isPending("withdraw") && <Loader2 size={12} className="animate-spin" />}
             Withdraw
           </button>
         )}
@@ -221,21 +244,33 @@ function DashboardCampaignCard({
             disabled={!!actionPending}
             className="flex items-center gap-1 rounded-lg bg-red-800 px-3 py-1.5 text-xs font-medium transition hover:bg-red-700 disabled:opacity-50"
           >
-            {isPending("cancel") && (
-              <Loader2 size={12} className="animate-spin" />
-            )}
+            {isPending("cancel") && <Loader2 size={12} className="animate-spin" />}
             Cancel
+          </button>
+        )}
+        {canPause && (
+          <button
+            onClick={() => onPauseToggle(contractId, false)}
+            disabled={!!actionPending}
+            className="flex items-center gap-1 rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-medium transition hover:bg-slate-600 disabled:opacity-50"
+          >
+            {isPending("pause") && <Loader2 size={12} className="animate-spin" />}
+            Pause
+          </button>
+        )}
+        {canUnpause && (
+          <button
+            onClick={() => onPauseToggle(contractId, true)}
+            disabled={!!actionPending}
+            className="flex items-center gap-1 rounded-lg bg-indigo-700 px-3 py-1.5 text-xs font-medium transition hover:bg-indigo-600 disabled:opacity-50"
+          >
+            {isPending("unpause") && <Loader2 size={12} className="animate-spin" />}
+            Resume
           </button>
         )}
         {canEdit && (
           <button
-            onClick={() =>
-              onEdit({
-                contractId,
-                title: info.title,
-                description: info.description,
-              })
-            }
+            onClick={() => onEdit({ contractId, title: info.title, description: info.description })}
             disabled={!!actionPending}
             className="rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-medium transition hover:bg-gray-600 disabled:opacity-50"
           >
@@ -258,6 +293,7 @@ function DashboardCampaignCard({
 
 export default function DashboardPage() {
   const { address, signTx, networkMismatch } = useWallet();
+  const { addNotification } = useNotifications();
   const router = useRouter();
 
   const [contractIds, setContractIds] = useState<string[]>([]);
@@ -313,6 +349,46 @@ export default function DashboardPage() {
     }
   };
 
+  const handlePauseToggle = async (contractId: string, currentlyPaused: boolean) => {
+    const action = currentlyPaused ? "unpause" : "pause";
+
+    let reason: string | undefined;
+    if (!currentlyPaused) {
+      const input = window.prompt("Reason for pausing (optional):");
+      if (input === null) return; // user cancelled
+      reason = input.trim() || undefined;
+    }
+
+    setActionPending(`${contractId}:${action}`);
+    try {
+      const xdr = currentlyPaused
+        ? await buildUnpauseTx(address!, contractId)
+        : await buildPauseTx(address!, contractId);
+      const signed = await signTx(xdr);
+      await submitSignedTx(signed);
+
+      if (currentlyPaused) {
+        localStorage.removeItem(`fmc:pause_reason:${contractId}`);
+      } else if (reason) {
+        localStorage.setItem(`fmc:pause_reason:${contractId}`, reason);
+      }
+
+      addNotification({
+        type: "info",
+        title: currentlyPaused ? "Campaign Resumed" : "Campaign Paused",
+        message: currentlyPaused
+          ? "The campaign has been resumed and is accepting contributions again."
+          : `The campaign has been paused.${reason ? ` Reason: ${reason}` : ""}`,
+        campaignId: contractId,
+      });
+      setRefreshNonce((n) => n + 1);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Transaction failed.");
+    } finally {
+      setActionPending(null);
+    }
+  };
+
   const handleEdit = async (
     contractId: string,
     title: string,
@@ -361,6 +437,7 @@ export default function DashboardPage() {
                 contractId={contractId}
                 onAction={handleAction}
                 onCancel={(id, title) => setCancelTarget({ contractId: id, title })}
+                onPauseToggle={handlePauseToggle}
                 onEdit={setEditTarget}
                 onExtend={(id, deadline) => setExtendTarget({ contractId: id, currentDeadline: deadline })}
                 actionPending={actionPending}

@@ -194,6 +194,16 @@ export function CampaignActions({
           </button>
         )}
 
+        {/* Paused — contributions disabled */}
+        {campaignStatus === "Paused" && (
+          <button
+            disabled
+            className="w-full py-3 rounded-xl font-medium bg-slate-700 text-slate-400 cursor-not-allowed opacity-60"
+          >
+            Contributions Paused
+          </button>
+        )}
+
         {/* Claim Refund */}
         {canRefund && (
           <button

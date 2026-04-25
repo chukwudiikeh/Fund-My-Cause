@@ -23,6 +23,7 @@ import { Confetti } from "@/components/ui/Confetti";
 import { GoalSuccessModal } from "@/components/ui/GoalSuccessModal";
 import { GoalSuccessBadge } from "@/components/ui/GoalSuccessBadge";
 import { ShareModal } from "@/components/ui/ShareModal";
+import { PausedBanner } from "@/components/ui/PausedBanner";
 
 function ContractIdRow({ contractId }: { contractId: string }) {
   const [copied, setCopied] = useState(false);
@@ -85,6 +86,12 @@ export function CampaignDetailContent({ contractId }: { contractId: string }) {
   const [showConfetti, setShowConfetti] = useState(false);
   // Track whether we've already shown the modal for this campaign load
   const celebratedRef = useRef(false);
+
+  // Read pause reason from localStorage (set by admin when pausing from dashboard)
+  const pauseReason =
+    typeof window !== "undefined"
+      ? localStorage.getItem(`fmc:pause_reason:${contractId}`) ?? undefined
+      : undefined;
 
   if (loading) {
     return (
@@ -190,6 +197,8 @@ export function CampaignDetailContent({ contractId }: { contractId: string }) {
         </div>
 
         {goalMet && <GoalSuccessBadge totalRaisedXlm={totalRaisedXlm} />}
+
+        {info.status === "Paused" && <PausedBanner reason={pauseReason} />}
 
         <div className="grid grid-cols-1 gap-4 text-center sm:grid-cols-3">
           <div className="rounded-xl bg-gray-100 p-4 dark:bg-gray-900">

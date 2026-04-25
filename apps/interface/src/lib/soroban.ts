@@ -420,6 +420,12 @@ export const buildCancelTx = (caller: string, contractId: string, reason?: strin
     reason ? [nativeToScVal(reason, { type: "string" })] : [],
   );
 
+export const buildPauseTx = (caller: string, contractId: string) =>
+  buildSimpleContractTx(caller, contractId, "pause");
+
+export const buildUnpauseTx = (caller: string, contractId: string) =>
+  buildSimpleContractTx(caller, contractId, "unpause");
+
 export async function buildRefundTx(
   caller: string,
   contractId: string,
