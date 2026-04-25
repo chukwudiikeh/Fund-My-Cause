@@ -463,6 +463,58 @@ impl CrowdfundContract {
         Ok(())
     }
 
+    /// Refunds multiple contributors in a single transaction (batch refund).
+    ///
+    /// Processes refunds for a list of contributors. Stops early if the batch
+    /// limit is reached to avoid exceeding resource limits.
+    /// Each contributor is only refunded if eligible (same conditions as `refund_single`).
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    /// * `contributors` - List of contributor addresses to refund
+    ///
+    /// # Returns
+    /// * `Ok(u32)` - Number of contributors successfully refunded
+    /// * `Err(ContractError::CampaignStillActive)` if deadline not passed and not cancelled
+    /// * `Err(ContractError::GoalReached)` if goal was reached and campaign not cancelled
+    pub fn refund_batch(env: Env, contributors: Vec<Address>) -> Result<u32, ContractError> {
+        let status: Status = env.storage().instance().get(&KEY_STATUS).unwrap();
+
+        if status != Status::Cancelled {
+            let deadline: u64 = env.storage().instance().get(&KEY_DEADLINE).unwrap();
+            if env.ledger().timestamp() < deadline {
+                return Err(ContractError::CampaignStillActive);
+            }
+            let goal: i128 = env.storage().instance().get(&KEY_GOAL).unwrap();
+            let total: i128 = env.storage().instance().get(&KEY_TOTAL).unwrap();
+            if total >= goal {
+                return Err(ContractError::GoalReached);
+            }
+        }
+
+        let token_address: Address = env.storage().instance().get(&KEY_TOKEN).unwrap();
+        let token_client = token::Client::new(&env, &token_address);
+
+        // Cap batch size to avoid resource exhaustion
+        const MAX_BATCH: u32 = 25;
+        let limit = contributors.len().min(MAX_BATCH);
+        let mut refunded: u32 = 0;
+
+        for i in 0..limit {
+            let contributor = contributors.get(i).unwrap();
+            let key = DataKey::Contribution(contributor.clone());
+            let amount: i128 = env.storage().persistent().get(&key).unwrap_or(0);
+            if amount > 0 {
+                token_client.transfer(&env.current_contract_address(), &contributor, &amount);
+                env.storage().persistent().set(&key, &0i128);
+                env.events().publish(("campaign", "refunded"), (contributor, amount));
+                refunded += 1;
+            }
+        }
+
+        Ok(refunded)
+    }
+
     /// Pauses the campaign, preventing new contributions.
     ///
     /// Can only be called while the campaign is in Active status.
