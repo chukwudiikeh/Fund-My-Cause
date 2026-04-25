@@ -132,3 +132,37 @@ export function useBatchRefund(contractId: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["campaign", contractId] }),
   });
 }
+
+export function usePause(contractId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      admin,
+      signTx,
+    }: {
+      admin: string;
+      signTx: (xdr: string) => Promise<string>;
+    }) => {
+      const { pauseCampaign } = await import("@/lib/contract");
+      return pauseCampaign(contractId, admin, signTx);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["campaign", contractId] }),
+  });
+}
+
+export function useUnpause(contractId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      admin,
+      signTx,
+    }: {
+      admin: string;
+      signTx: (xdr: string) => Promise<string>;
+    }) => {
+      const { unpauseCampaign } = await import("@/lib/contract");
+      return unpauseCampaign(contractId, admin, signTx);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["campaign", contractId] }),
+  });
+}

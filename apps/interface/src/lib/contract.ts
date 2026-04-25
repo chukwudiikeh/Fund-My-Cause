@@ -274,3 +274,35 @@ export async function refundBatch(
     signTx,
   );
 }
+
+/**
+ * Pauses the campaign, blocking new contributions. Admin only.
+ * @param {string} contractId - The Soroban contract address
+ * @param {string} admin - The admin's Stellar public key
+ * @param {SignFn} signTx - Wallet signing function
+ * @returns {Promise<string>} Transaction hash on success
+ * @throws {ContractError} If pause fails
+ */
+export async function pauseCampaign(
+  contractId: string,
+  admin: string,
+  signTx: SignFn,
+): Promise<string> {
+  return invokeContract(admin, contractId, "pause", [], signTx);
+}
+
+/**
+ * Resumes a paused campaign, allowing contributions again. Admin only.
+ * @param {string} contractId - The Soroban contract address
+ * @param {string} admin - The admin's Stellar public key
+ * @param {SignFn} signTx - Wallet signing function
+ * @returns {Promise<string>} Transaction hash on success
+ * @throws {ContractError} If unpause fails
+ */
+export async function unpauseCampaign(
+  contractId: string,
+  admin: string,
+  signTx: SignFn,
+): Promise<string> {
+  return invokeContract(admin, contractId, "unpause", [], signTx);
+}
