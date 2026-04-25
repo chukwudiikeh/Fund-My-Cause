@@ -21,6 +21,9 @@ import {
 import { useCampaignDraft } from "@/hooks/useCampaignDraft";
 import { DraftIndicator } from "@/components/ui/DraftIndicator";
 import { CampaignPreview } from "@/components/ui/CampaignPreview";
+import { FAQAccordion } from "@/components/ui/FAQAccordion";
+import type { FAQ, TeamMember } from "@/types/campaign";
+import { PlusCircle, Trash2 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -36,7 +39,10 @@ interface FormData {
   // Step 2
   imageUrl: string;
   videoUrl: string;
-  // Step 3
+  // Step 3 (FAQ & Team)
+  faqs: FAQ[];
+  teamMembers: TeamMember[];
+  // Step 4
   feeAddress: string;
   feeBps: string;
 }
@@ -46,13 +52,14 @@ type TxStatus = "idle" | "pending" | "success" | "error";
 const STEPS = [
   "Basic Info",
   "Media",
+  "FAQ & Team",
   "Platform Config",
   "Review & Deploy",
   "Preview",
 ];
 
-// Preview is step index 4 — rendered outside the narrow card
-const PREVIEW_STEP = 4;
+// Preview is step index 5 — rendered outside the narrow card
+const PREVIEW_STEP = 5;
 
 const INITIAL: FormData = {
   contractId: "",
@@ -64,6 +71,8 @@ const INITIAL: FormData = {
   minContribution: "1",
   imageUrl: "",
   videoUrl: "",
+  faqs: [],
+  teamMembers: [],
   feeAddress: "",
   feeBps: "",
 };
@@ -287,6 +296,155 @@ function Step2({
 
 function Step3({
   data,
+  setFaqs,
+  setTeamMembers,
+}: {
+  data: FormData;
+  setFaqs: (faqs: FAQ[]) => void;
+  setTeamMembers: (members: TeamMember[]) => void;
+}) {
+  const addFaq = () =>
+    setFaqs([
+      ...data.faqs,
+      { id: crypto.randomUUID(), question: "", answer: "" },
+    ]);
+
+  const updateFaq = (id: string, field: "question" | "answer", val: string) =>
+    setFaqs(data.faqs.map((f) => (f.id === id ? { ...f, [field]: val } : f)));
+
+  const removeFaq = (id: string) =>
+    setFaqs(data.faqs.filter((f) => f.id !== id));
+
+  const addMember = () =>
+    setTeamMembers([
+      ...data.teamMembers,
+      { id: crypto.randomUUID(), name: "", role: "" },
+    ]);
+
+  const updateMember = (
+    id: string,
+    field: keyof TeamMember,
+    val: string,
+  ) =>
+    setTeamMembers(
+      data.teamMembers.map((m) => (m.id === id ? { ...m, [field]: val } : m)),
+    );
+
+  const removeMember = (id: string) =>
+    setTeamMembers(data.teamMembers.filter((m) => m.id !== id));
+
+  return (
+    <div className="space-y-6">
+      {/* FAQ */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">FAQs</p>
+          <button
+            type="button"
+            onClick={addFaq}
+            className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-400 transition"
+          >
+            <PlusCircle size={13} /> Add FAQ
+          </button>
+        </div>
+        {data.faqs.map((faq) => (
+          <div
+            key={faq.id}
+            className="space-y-2 rounded-xl border border-gray-700 p-3"
+          >
+            <div className="flex items-center gap-2">
+              <input
+                className={inputCls + " flex-1"}
+                placeholder="Question"
+                value={faq.question}
+                onChange={(e) => updateFaq(faq.id, "question", e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => removeFaq(faq.id)}
+                aria-label="Remove FAQ"
+                className="text-gray-500 hover:text-red-400 transition"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+            <textarea
+              rows={2}
+              className={inputCls}
+              placeholder="Answer"
+              value={faq.answer}
+              onChange={(e) => updateFaq(faq.id, "answer", e.target.value)}
+            />
+          </div>
+        ))}
+        {data.faqs.length === 0 && (
+          <p className="text-xs text-gray-500">No FAQs added yet.</p>
+        )}
+      </div>
+
+      {/* Team Members */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">Team Members</p>
+          <button
+            type="button"
+            onClick={addMember}
+            className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-400 transition"
+          >
+            <PlusCircle size={13} /> Add Member
+          </button>
+        </div>
+        {data.teamMembers.map((m) => (
+          <div
+            key={m.id}
+            className="space-y-2 rounded-xl border border-gray-700 p-3"
+          >
+            <div className="flex items-center gap-2">
+              <input
+                className={inputCls + " flex-1"}
+                placeholder="Name"
+                value={m.name}
+                onChange={(e) => updateMember(m.id, "name", e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => removeMember(m.id)}
+                aria-label="Remove member"
+                className="text-gray-500 hover:text-red-400 transition"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+            <input
+              className={inputCls}
+              placeholder="Role (e.g. Lead Developer)"
+              value={m.role}
+              onChange={(e) => updateMember(m.id, "role", e.target.value)}
+            />
+            <input
+              className={inputCls}
+              placeholder="Bio (optional)"
+              value={m.bio ?? ""}
+              onChange={(e) => updateMember(m.id, "bio", e.target.value)}
+            />
+            <input
+              className={inputCls}
+              placeholder="Avatar URL (optional)"
+              value={m.avatarUrl ?? ""}
+              onChange={(e) => updateMember(m.id, "avatarUrl", e.target.value)}
+            />
+          </div>
+        ))}
+        {data.teamMembers.length === 0 && (
+          <p className="text-xs text-gray-500">No team members added yet.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Step4({
+  data,
   set,
 }: {
   data: FormData;
@@ -336,7 +494,7 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Step4({ data }: { data: FormData }) {
+function Step5({ data }: { data: FormData }) {
   const deadlineTs = data.deadline
     ? new Date(data.deadline).toLocaleDateString()
     : "—";
@@ -353,6 +511,8 @@ function Step4({ data }: { data: FormData }) {
       />
       <ReviewRow label="Deadline" value={deadlineTs} />
       <ReviewRow label="Image" value={data.imageUrl} />
+      <ReviewRow label="FAQs" value={data.faqs.length ? `${data.faqs.length} added` : "—"} />
+      <ReviewRow label="Team Members" value={data.teamMembers.length ? `${data.teamMembers.length} added` : "—"} />
       <ReviewRow label="Fee Address" value={data.feeAddress} />
       <ReviewRow label="Fee (bps)" value={data.feeBps} />
     </div>
@@ -384,7 +544,7 @@ function validateStep(step: number, data: FormData): string | null {
     );
     if (minContribErr) return minContribErr;
   }
-  if (step === 2) {
+  if (step === 3) {
     if (data.feeAddress && !data.feeBps)
       return "Provide fee bps when a fee address is set.";
 
@@ -396,7 +556,7 @@ function validateStep(step: number, data: FormData): string | null {
 
 /** Validate all steps before allowing preview or deploy. */
 function validateAllSteps(data: FormData): string | null {
-  return validateStep(0, data) ?? validateStep(2, data);
+  return validateStep(0, data) ?? validateStep(3, data);
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
@@ -421,6 +581,10 @@ export default function CreateCampaignPage() {
     setData((prev) => ({ ...prev, [k]: v }));
     setValidationError(null);
   };
+
+  const setFaqs = (faqs: FAQ[]) => setData((prev) => ({ ...prev, faqs }));
+  const setTeamMembers = (teamMembers: TeamMember[]) =>
+    setData((prev) => ({ ...prev, teamMembers }));
 
   const handleResumeDraft = () => {
     const draft = loadDraft();
@@ -649,8 +813,9 @@ export default function CreateCampaignPage() {
 
                 {step === 0 && <Step1 data={data} set={set} />}
                 {step === 1 && <Step2 data={data} set={set} />}
-                {step === 2 && <Step3 data={data} set={set} />}
-                {step === 3 && <Step4 data={data} />}
+                {step === 2 && <Step3 data={data} setFaqs={setFaqs} setTeamMembers={setTeamMembers} />}
+                {step === 3 && <Step4 data={data} set={set} />}
+                {step === 4 && <Step5 data={data} />}
 
                 {validationError && (
                   <p className="text-red-500 dark:text-red-400 text-sm">

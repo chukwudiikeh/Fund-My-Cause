@@ -2,23 +2,12 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, PlusCircle } from "lucide-react";
+import { Loader2, PlusCircle, BarChart2 } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { WalletGuard } from "@/components/WalletGuard";
 import { EmptyState, NoDashboardCampaignsIllustration } from "@/components/ui/EmptyState";
-import { useWallet } from "@/context/WalletContext";
-import { useCampaign } from "@/hooks/useCampaign";
-import {
-  buildCancelTx,
-  buildUpdateMetadataTx,
-  buildWithdrawTx,
-  submitSignedTx,
-  type CampaignInfo,
-  type CampaignStats,
-  type CampaignStatus,
-} from "@/lib/soroban";
-import { Loader2, PlusCircle, BarChart2 } from "lucide-react";
+import { DeadlineExtensionModal } from "@/components/ui/DeadlineExtensionModal";
 import { AnalyticsDashboard } from "@/components/ui/AnalyticsDashboard";
 import { formatXLM } from "@/lib/format";
 
@@ -174,6 +163,7 @@ function DashboardCampaignCard({
   actionPending,
   onAction,
   onEdit,
+  onExtend,
   refreshNonce,
 }: {
   contractId: string;
@@ -183,6 +173,7 @@ function DashboardCampaignCard({
     action: "withdraw" | "cancel",
   ) => Promise<void>;
   onEdit: (campaign: EditableCampaign) => void;
+  onExtend: (contractId: string, currentDeadline: string) => void;
   refreshNonce: number;
 }) {
   const fmtXlm = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -248,6 +239,15 @@ function DashboardCampaignCard({
             Edit Metadata
           </button>
         )}
+        {canEdit && (
+          <button
+            onClick={() => onExtend(contractId, new Date(Number(info.deadline) * 1000).toISOString())}
+            disabled={!!actionPending}
+            className="rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-medium transition hover:bg-gray-600 disabled:opacity-50"
+          >
+            Extend Deadline
+          </button>
+        )}
       </div>
     </div>
   );
@@ -261,9 +261,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionPending, setActionPending] = useState<string | null>(null);
-  const [editTarget, setEditTarget] = useState<CampaignData | null>(null);
-  const [activeTab, setActiveTab] = useState<"campaigns" | "analytics">("campaigns");
   const [editTarget, setEditTarget] = useState<EditableCampaign | null>(null);
+  const [extendTarget, setExtendTarget] = useState<{ contractId: string; currentDeadline: string } | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
 
   const loadCampaignIds = useCallback((walletAddress: string) => {
@@ -328,55 +327,6 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-gray-950 text-white">
       <Navbar />
-
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold">My Campaigns</h1>
-          <button
-            onClick={() => router.push("/create")}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-xl text-sm font-medium transition"
-          >
-            <PlusCircle size={16} /> New Campaign
-          </button>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-gray-900 rounded-xl p-1 w-fit">
-          <button
-            onClick={() => setActiveTab("campaigns")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
-              activeTab === "campaigns" ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-white"
-            }`}
-          >
-            <PlusCircle size={14} /> Campaigns
-          </button>
-          <button
-            onClick={() => setActiveTab("analytics")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
-              activeTab === "analytics" ? "bg-indigo-600 text-white" : "text-gray-400 hover:text-white"
-            }`}
-          >
-            <BarChart2 size={14} /> Analytics
-          </button>
-        </div>
-
-        {activeTab === "analytics" && <AnalyticsDashboard campaigns={campaigns} />}
-
-        {activeTab === "campaigns" && loading && (
-          <div className="flex justify-center py-20">
-            <Loader2 size={32} className="animate-spin text-indigo-400" />
-          </div>
-        )}
-
-        {activeTab === "campaigns" && !loading && loadError && (
-          <p className="text-yellow-400 text-sm mb-4">{loadError}</p>
-        )}
-
-        {activeTab === "campaigns" && !loading && campaigns.length === 0 && (
-          <div className="text-center py-20 text-gray-500">
-            <p>No campaigns found for this wallet.</p>
-            <button onClick={() => router.push("/create")} className="mt-4 text-indigo-400 hover:text-indigo-300 text-sm transition">
-              Create your first campaign →
       <WalletGuard message="Connect your wallet to view your dashboard.">
         <div className="mx-auto max-w-4xl px-6 py-12">
           <div className="mb-8 flex items-center justify-between">
@@ -389,25 +339,6 @@ export default function DashboardPage() {
               <PlusCircle size={16} /> New Campaign
             </button>
           </div>
-
-        {activeTab === "campaigns" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {campaigns.map((c) => (
-            <CampaignCard
-              key={c.contractId}
-              campaign={c}
-              onAction={handleAction}
-              onEdit={setEditTarget}
-              actionPending={actionPending}
-          {loading && (
-            <div className="flex justify-center py-20">
-              <Loader2 size={32} className="animate-spin text-indigo-400" />
-            </div>
-          )}
-
-          {!loading && loadError && (
-            <p className="mb-4 text-sm text-yellow-400">{loadError}</p>
-          )}
 
           {!loading && contractIds.length === 0 && (
             <EmptyState
@@ -425,20 +356,30 @@ export default function DashboardPage() {
                 contractId={contractId}
                 onAction={handleAction}
                 onEdit={setEditTarget}
+                onExtend={(id, deadline) => setExtendTarget({ contractId: id, currentDeadline: deadline })}
                 actionPending={actionPending}
                 refreshNonce={refreshNonce}
               />
             ))}
           </div>
         </div>
-        )}
-      </div>
 
         {editTarget && (
           <EditModal
             campaign={editTarget}
             onClose={() => setEditTarget(null)}
             onSave={handleEdit}
+          />
+        )}
+        {extendTarget && (
+          <DeadlineExtensionModal
+            contractId={extendTarget.contractId}
+            currentDeadline={extendTarget.currentDeadline}
+            onClose={() => setExtendTarget(null)}
+            onExtend={async (_contractId, _newTs) => {
+              setExtendTarget(null);
+              setRefreshNonce((n) => n + 1);
+            }}
           />
         )}
       </WalletGuard>
