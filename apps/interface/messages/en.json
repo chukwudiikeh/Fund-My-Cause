@@ -1,0 +1,108 @@
+{
+  "nav": {
+    "connectWallet": "Connect Wallet",
+    "disconnect": "Disconnect",
+    "notifications": "Notifications",
+    "toggleTheme": "Toggle theme",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "restoringSession": "Restoring wallet session…",
+    "networkMismatch": "Your wallet is on {walletNetwork} but this app uses {appNetwork}. Please switch networks in Freighter."
+  },
+  "home": {
+    "badge": "Built on Stellar · Powered by Soroban",
+    "heroTitle": "Fund the Future,\nOn-Chain.",
+    "heroSubtitle": "Create or support campaigns with lightning-fast, trustless transactions on the Stellar network.",
+    "exploreCampaigns": "Explore Campaigns",
+    "startCampaign": "Start a Campaign",
+    "featuredCampaigns": "Featured Campaigns",
+    "viewAll": "View all",
+    "featured": "Featured",
+    "raised": "{amount} XLM raised",
+    "goal": "{amount} XLM goal",
+    "timeLeft": "{time} left",
+    "pledgeNow": "Pledge Now",
+    "successfullyFunded": "Successfully Funded",
+    "howItWorks": "How It Works",
+    "stats": {
+      "campaignsLaunched": "Campaigns Launched",
+      "totalRaised": "Total Raised",
+      "contributors": "Contributors"
+    },
+    "steps": {
+      "createTitle": "Create",
+      "createDesc": "Deploy a campaign on-chain with your goal, deadline, and token in minutes.",
+      "fundTitle": "Fund",
+      "fundDesc": "Contributors pledge XLM or any Stellar token before the deadline.",
+      "withdrawTitle": "Withdraw or Refund",
+      "withdrawDesc": "Goal met? Withdraw funds. Goal missed? Contributors claim refunds automatically."
+    },
+    "footer": {
+      "campaigns": "Campaigns",
+      "create": "Create",
+      "dashboard": "Dashboard",
+      "bookmarks": "Bookmarks",
+      "stellarDocs": "Stellar Docs",
+      "license": "MIT License · Built on Stellar"
+    }
+  },
+  "campaigns": {
+    "title": "Campaigns",
+    "searchPlaceholder": "Search campaigns...",
+    "sortNewest": "Newest",
+    "sortMostFunded": "Most Funded",
+    "sortEndingSoon": "Ending Soon",
+    "filterAll": "All",
+    "filterActive": "Active",
+    "filterFunded": "Funded",
+    "filterEnded": "Ended",
+    "filterLabel": "Filter campaigns",
+    "found": "{count} campaign found",
+    "foundPlural": "{count} campaigns found",
+    "noResults": "No campaigns found",
+    "noResultsDesc": "Try adjusting your search or filters to find what you're looking for.",
+    "clearFilters": "Clear filters",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {current} of {total}",
+    "selected": "{count} selected",
+    "compare": "Compare",
+    "clear": "Clear"
+  },
+  "bookmarks": {
+    "title": "My Bookmarks",
+    "export": "Export",
+    "import": "Import",
+    "empty": "No bookmarks yet.",
+    "browseCampaigns": "Browse campaigns",
+    "deadlineAlert": "{title} ends in {days, plural, =0 {less than a day} one {# day} other {# days}}!"
+  },
+  "compare": {
+    "title": "Compare Campaigns",
+    "share": "Share",
+    "clear": "Clear",
+    "noSelection": "No campaigns selected for comparison.",
+    "browseCampaigns": "Browse campaigns",
+    "selectHint": "Select up to 4 campaigns from the campaigns page to compare.",
+    "metric": "Metric",
+    "status": "Status",
+    "raised": "Raised",
+    "goal": "Goal",
+    "progress": "Progress",
+    "deadline": "Deadline",
+    "contributors": "Contributors",
+    "token": "Token",
+    "removeFromComparison": "Remove {title} from comparison",
+    "copiedToClipboard": "Comparison link copied to clipboard!"
+  },
+  "notFound": {
+    "title": "404",
+    "message": "This page doesn't exist.",
+    "goHome": "Go Home"
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "Something went wrong.",
+    "retry": "Retry"
+  }
+}

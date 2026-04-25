@@ -1,0 +1,108 @@
+{
+  "nav": {
+    "connectWallet": "Conectar billetera",
+    "disconnect": "Desconectar",
+    "notifications": "Notificaciones",
+    "toggleTheme": "Cambiar tema",
+    "openMenu": "Abrir menú",
+    "closeMenu": "Cerrar menú",
+    "restoringSession": "Restaurando sesión de billetera…",
+    "networkMismatch": "Tu billetera está en {walletNetwork} pero esta app usa {appNetwork}. Cambia de red en Freighter."
+  },
+  "home": {
+    "badge": "Construido en Stellar · Impulsado por Soroban",
+    "heroTitle": "Financia el Futuro,\nEn Cadena.",
+    "heroSubtitle": "Crea o apoya campañas con transacciones ultrarrápidas y sin confianza en la red Stellar.",
+    "exploreCampaigns": "Explorar campañas",
+    "startCampaign": "Iniciar una campaña",
+    "featuredCampaigns": "Campañas destacadas",
+    "viewAll": "Ver todas",
+    "featured": "Destacada",
+    "raised": "{amount} XLM recaudados",
+    "goal": "Meta: {amount} XLM",
+    "timeLeft": "{time} restante",
+    "pledgeNow": "Contribuir ahora",
+    "successfullyFunded": "Financiada con éxito",
+    "howItWorks": "Cómo funciona",
+    "stats": {
+      "campaignsLaunched": "Campañas lanzadas",
+      "totalRaised": "Total recaudado",
+      "contributors": "Contribuyentes"
+    },
+    "steps": {
+      "createTitle": "Crear",
+      "createDesc": "Despliega una campaña en cadena con tu meta, fecha límite y token en minutos.",
+      "fundTitle": "Financiar",
+      "fundDesc": "Los contribuyentes prometen XLM o cualquier token Stellar antes de la fecha límite.",
+      "withdrawTitle": "Retirar o Reembolsar",
+      "withdrawDesc": "¿Meta alcanzada? Retira fondos. ¿Meta no alcanzada? Los contribuyentes reclaman reembolsos automáticamente."
+    },
+    "footer": {
+      "campaigns": "Campañas",
+      "create": "Crear",
+      "dashboard": "Panel",
+      "bookmarks": "Marcadores",
+      "stellarDocs": "Docs de Stellar",
+      "license": "Licencia MIT · Construido en Stellar"
+    }
+  },
+  "campaigns": {
+    "title": "Campañas",
+    "searchPlaceholder": "Buscar campañas...",
+    "sortNewest": "Más recientes",
+    "sortMostFunded": "Más financiadas",
+    "sortEndingSoon": "Terminan pronto",
+    "filterAll": "Todas",
+    "filterActive": "Activas",
+    "filterFunded": "Financiadas",
+    "filterEnded": "Terminadas",
+    "filterLabel": "Filtrar campañas",
+    "found": "{count} campaña encontrada",
+    "foundPlural": "{count} campañas encontradas",
+    "noResults": "No se encontraron campañas",
+    "noResultsDesc": "Intenta ajustar tu búsqueda o filtros.",
+    "clearFilters": "Limpiar filtros",
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "page": "Página {current} de {total}",
+    "selected": "{count} seleccionadas",
+    "compare": "Comparar",
+    "clear": "Limpiar"
+  },
+  "bookmarks": {
+    "title": "Mis marcadores",
+    "export": "Exportar",
+    "import": "Importar",
+    "empty": "Sin marcadores aún.",
+    "browseCampaigns": "Explorar campañas",
+    "deadlineAlert": "¡{title} termina en {days, plural, =0 {menos de un día} one {# día} other {# días}}!"
+  },
+  "compare": {
+    "title": "Comparar campañas",
+    "share": "Compartir",
+    "clear": "Limpiar",
+    "noSelection": "No hay campañas seleccionadas para comparar.",
+    "browseCampaigns": "Explorar campañas",
+    "selectHint": "Selecciona hasta 4 campañas desde la página de campañas para comparar.",
+    "metric": "Métrica",
+    "status": "Estado",
+    "raised": "Recaudado",
+    "goal": "Meta",
+    "progress": "Progreso",
+    "deadline": "Fecha límite",
+    "contributors": "Contribuyentes",
+    "token": "Token",
+    "removeFromComparison": "Quitar {title} de la comparación",
+    "copiedToClipboard": "¡Enlace de comparación copiado al portapapeles!"
+  },
+  "notFound": {
+    "title": "404",
+    "message": "Esta página no existe.",
+    "goHome": "Ir al inicio"
+  },
+  "common": {
+    "loading": "Cargando…",
+    "error": "Algo salió mal.",
+    "retry": "Reintentar"
+  }
+}

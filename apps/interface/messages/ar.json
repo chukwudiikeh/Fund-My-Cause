@@ -1,0 +1,108 @@
+{
+  "nav": {
+    "connectWallet": "ربط المحفظة",
+    "disconnect": "قطع الاتصال",
+    "notifications": "الإشعارات",
+    "toggleTheme": "تبديل المظهر",
+    "openMenu": "فتح القائمة",
+    "closeMenu": "إغلاق القائمة",
+    "restoringSession": "جارٍ استعادة جلسة المحفظة…",
+    "networkMismatch": "محفظتك على {walletNetwork} لكن هذا التطبيق يستخدم {appNetwork}. يرجى تغيير الشبكة في Freighter."
+  },
+  "home": {
+    "badge": "مبني على Stellar · مدعوم بـ Soroban",
+    "heroTitle": "موّل المستقبل،\nعلى السلسلة.",
+    "heroSubtitle": "أنشئ حملات أو ادعمها بمعاملات فائقة السرعة وبدون ثقة على شبكة Stellar.",
+    "exploreCampaigns": "استكشاف الحملات",
+    "startCampaign": "ابدأ حملة",
+    "featuredCampaigns": "الحملات المميزة",
+    "viewAll": "عرض الكل",
+    "featured": "مميزة",
+    "raised": "تم جمع {amount} XLM",
+    "goal": "الهدف: {amount} XLM",
+    "timeLeft": "{time} متبقية",
+    "pledgeNow": "تبرع الآن",
+    "successfullyFunded": "تم التمويل بنجاح",
+    "howItWorks": "كيف يعمل",
+    "stats": {
+      "campaignsLaunched": "الحملات المطلقة",
+      "totalRaised": "إجمالي المجموع",
+      "contributors": "المساهمون"
+    },
+    "steps": {
+      "createTitle": "إنشاء",
+      "createDesc": "انشر حملة على السلسلة بهدفك وموعدك النهائي والرمز المميز في دقائق.",
+      "fundTitle": "تمويل",
+      "fundDesc": "يتعهد المساهمون بـ XLM أو أي رمز Stellar قبل الموعد النهائي.",
+      "withdrawTitle": "سحب أو استرداد",
+      "withdrawDesc": "هل تحقق الهدف؟ اسحب الأموال. لم يتحقق؟ يطالب المساهمون باسترداد أموالهم تلقائيًا."
+    },
+    "footer": {
+      "campaigns": "الحملات",
+      "create": "إنشاء",
+      "dashboard": "لوحة التحكم",
+      "bookmarks": "المفضلة",
+      "stellarDocs": "وثائق Stellar",
+      "license": "رخصة MIT · مبني على Stellar"
+    }
+  },
+  "campaigns": {
+    "title": "الحملات",
+    "searchPlaceholder": "البحث في الحملات...",
+    "sortNewest": "الأحدث",
+    "sortMostFunded": "الأكثر تمويلاً",
+    "sortEndingSoon": "تنتهي قريباً",
+    "filterAll": "الكل",
+    "filterActive": "نشطة",
+    "filterFunded": "ممولة",
+    "filterEnded": "منتهية",
+    "filterLabel": "تصفية الحملات",
+    "found": "تم العثور على {count} حملة",
+    "foundPlural": "تم العثور على {count} حملات",
+    "noResults": "لم يتم العثور على حملات",
+    "noResultsDesc": "حاول تعديل بحثك أو الفلاتر.",
+    "clearFilters": "مسح الفلاتر",
+    "previous": "السابق",
+    "next": "التالي",
+    "page": "الصفحة {current} من {total}",
+    "selected": "{count} محددة",
+    "compare": "مقارنة",
+    "clear": "مسح"
+  },
+  "bookmarks": {
+    "title": "مفضلتي",
+    "export": "تصدير",
+    "import": "استيراد",
+    "empty": "لا توجد مفضلات بعد.",
+    "browseCampaigns": "تصفح الحملات",
+    "deadlineAlert": "تنتهي {title} خلال {days, plural, =0 {أقل من يوم} one {يوم واحد} other {# أيام}}!"
+  },
+  "compare": {
+    "title": "مقارنة الحملات",
+    "share": "مشاركة",
+    "clear": "مسح",
+    "noSelection": "لم يتم تحديد حملات للمقارنة.",
+    "browseCampaigns": "تصفح الحملات",
+    "selectHint": "حدد ما يصل إلى 4 حملات من صفحة الحملات للمقارنة.",
+    "metric": "المقياس",
+    "status": "الحالة",
+    "raised": "المجموع",
+    "goal": "الهدف",
+    "progress": "التقدم",
+    "deadline": "الموعد النهائي",
+    "contributors": "المساهمون",
+    "token": "الرمز",
+    "removeFromComparison": "إزالة {title} من المقارنة",
+    "copiedToClipboard": "تم نسخ رابط المقارنة إلى الحافظة!"
+  },
+  "notFound": {
+    "title": "404",
+    "message": "هذه الصفحة غير موجودة.",
+    "goHome": "الذهاب للرئيسية"
+  },
+  "common": {
+    "loading": "جارٍ التحميل…",
+    "error": "حدث خطأ ما.",
+    "retry": "إعادة المحاولة"
+  }
+}
