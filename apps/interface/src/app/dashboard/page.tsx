@@ -9,6 +9,7 @@ import { WalletGuard } from "@/components/WalletGuard";
 import { EmptyState, NoDashboardCampaignsIllustration } from "@/components/ui/EmptyState";
 import { DeadlineExtensionModal } from "@/components/ui/DeadlineExtensionModal";
 import { AnalyticsDashboard } from "@/components/ui/AnalyticsDashboard";
+import { CancelCampaignModal } from "@/components/ui/CancelCampaignModal";
 import { formatXLM } from "@/lib/format";
 
 const REGISTRY_KEY = "fmc:campaigns";
@@ -162,6 +163,7 @@ function DashboardCampaignCard({
   contractId,
   actionPending,
   onAction,
+  onCancel,
   onEdit,
   onExtend,
   refreshNonce,
@@ -172,6 +174,7 @@ function DashboardCampaignCard({
     contractId: string,
     action: "withdraw" | "cancel",
   ) => Promise<void>;
+  onCancel: (contractId: string, title: string) => void;
   onEdit: (campaign: EditableCampaign) => void;
   onExtend: (contractId: string, currentDeadline: string) => void;
   refreshNonce: number;
@@ -214,7 +217,7 @@ function DashboardCampaignCard({
         )}
         {canCancel && (
           <button
-            onClick={() => onAction(contractId, "cancel")}
+            onClick={() => onCancel(contractId, info.title)}
             disabled={!!actionPending}
             className="flex items-center gap-1 rounded-lg bg-red-800 px-3 py-1.5 text-xs font-medium transition hover:bg-red-700 disabled:opacity-50"
           >
@@ -263,6 +266,7 @@ export default function DashboardPage() {
   const [actionPending, setActionPending] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<EditableCampaign | null>(null);
   const [extendTarget, setExtendTarget] = useState<{ contractId: string; currentDeadline: string } | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<{ contractId: string; title: string } | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
 
   const loadCampaignIds = useCallback((walletAddress: string) => {
@@ -291,13 +295,14 @@ export default function DashboardPage() {
   const handleAction = async (
     contractId: string,
     action: "withdraw" | "cancel",
+    reason?: string,
   ) => {
     setActionPending(`${contractId}:${action}`);
     try {
       const xdr =
         action === "withdraw"
           ? await buildWithdrawTx(address!, contractId)
-          : await buildCancelTx(address!, contractId);
+          : await buildCancelTx(address!, contractId, reason);
       const signed = await signTx(xdr);
       await submitSignedTx(signed);
       setRefreshNonce((value) => value + 1);
@@ -355,6 +360,7 @@ export default function DashboardPage() {
                 key={contractId}
                 contractId={contractId}
                 onAction={handleAction}
+                onCancel={(id, title) => setCancelTarget({ contractId: id, title })}
                 onEdit={setEditTarget}
                 onExtend={(id, deadline) => setExtendTarget({ contractId: id, currentDeadline: deadline })}
                 actionPending={actionPending}
@@ -379,6 +385,16 @@ export default function DashboardPage() {
             onExtend={async (_contractId, _newTs) => {
               setExtendTarget(null);
               setRefreshNonce((n) => n + 1);
+            }}
+          />
+        )}
+        {cancelTarget && (
+          <CancelCampaignModal
+            campaignTitle={cancelTarget.title}
+            onClose={() => setCancelTarget(null)}
+            onConfirm={async (reason) => {
+              await handleAction(cancelTarget.contractId, "cancel", reason);
+              setCancelTarget(null);
             }}
           />
         )}
