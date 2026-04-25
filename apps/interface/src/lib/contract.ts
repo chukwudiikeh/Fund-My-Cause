@@ -245,3 +245,32 @@ export async function refundSingle(
     signTx,
   );
 }
+
+/**
+ * Refunds multiple contributors in a single transaction (batch refund).
+ * The contract caps the batch at 25 contributors per call.
+ * @param {string} contractId - The Soroban contract address
+ * @param {string} caller - The caller's Stellar public key (any authorized address)
+ * @param {string[]} contributors - List of contributor addresses to refund
+ * @param {SignFn} signTx - Wallet signing function
+ * @returns {Promise<string>} Transaction hash on success
+ * @throws {ContractError} If batch refund fails
+ */
+export async function refundBatch(
+  contractId: string,
+  caller: string,
+  contributors: string[],
+  signTx: SignFn,
+): Promise<string> {
+  const { xdr } = await import("@stellar/stellar-sdk");
+  const contributorVec = xdr.ScVal.scvVec(
+    contributors.map((addr) => new Address(addr).toScVal()),
+  );
+  return invokeContract(
+    caller,
+    contractId,
+    "refund_batch",
+    [contributorVec],
+    signTx,
+  );
+}

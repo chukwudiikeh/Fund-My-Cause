@@ -159,3 +159,164 @@ fn accepted_token_whitelist_is_enforced() {
     let result = client.try_contribute(&contributor, &100, &other_token);
     assert_eq!(result.err(), Some(Ok(ContractError::TokenNotAccepted)));
 }
+
+// ── refund_batch tests (#278) ─────────────────────────────────────────────────
+
+#[test]
+fn refund_batch_refunds_multiple_contributors() {
+    let env = Env::default();
+    let deadline = 1_000u64;
+
+    let (_creator, token_id, client, token_admin_client) =
+        setup_contract(&env, deadline, 100_000, 100);
+
+    let token_client = token::Client::new(&env, &token_id);
+
+    let c1 = Address::generate(&env);
+    let c2 = Address::generate(&env);
+    let c3 = Address::generate(&env);
+
+    token_admin_client.mint(&c1, &500);
+    token_admin_client.mint(&c2, &300);
+    token_admin_client.mint(&c3, &200);
+
+    client.contribute(&c1, &500, &token_id);
+    client.contribute(&c2, &300, &token_id);
+    client.contribute(&c3, &200, &token_id);
+
+    // Cancel so refunds are allowed before deadline
+    client.cancel_campaign();
+
+    let mut batch = Vec::new(&env);
+    batch.push_back(c1.clone());
+    batch.push_back(c2.clone());
+    batch.push_back(c3.clone());
+
+    let refunded = client.refund_batch(&batch);
+    assert_eq!(refunded, 3);
+
+    assert_eq!(token_client.balance(&c1), 500);
+    assert_eq!(token_client.balance(&c2), 300);
+    assert_eq!(token_client.balance(&c3), 200);
+    assert_eq!(client.contribution(&c1), 0);
+    assert_eq!(client.contribution(&c2), 0);
+    assert_eq!(client.contribution(&c3), 0);
+}
+
+#[test]
+fn refund_batch_skips_already_refunded() {
+    let env = Env::default();
+    let deadline = 1_000u64;
+
+    let (_creator, token_id, client, token_admin_client) =
+        setup_contract(&env, deadline, 100_000, 100);
+
+    let c1 = Address::generate(&env);
+    token_admin_client.mint(&c1, &500);
+    client.contribute(&c1, &500, &token_id);
+    client.cancel_campaign();
+
+    // First batch refund
+    let mut batch = Vec::new(&env);
+    batch.push_back(c1.clone());
+    let r1 = client.refund_batch(&batch);
+    assert_eq!(r1, 1);
+
+    // Second batch refund — already refunded, should return 0
+    let r2 = client.refund_batch(&batch);
+    assert_eq!(r2, 0);
+}
+
+#[test]
+fn refund_batch_fails_when_campaign_still_active() {
+    let env = Env::default();
+    let deadline = 1_000u64;
+
+    let (_creator, token_id, client, token_admin_client) =
+        setup_contract(&env, deadline, 100_000, 100);
+
+    let c1 = Address::generate(&env);
+    token_admin_client.mint(&c1, &500);
+    client.contribute(&c1, &500, &token_id);
+
+    let mut batch = Vec::new(&env);
+    batch.push_back(c1.clone());
+
+    let result = client.try_refund_batch(&batch);
+    assert_eq!(result.err(), Some(Ok(ContractError::CampaignStillActive)));
+}
+
+// ── pause/unpause tests (#279) ────────────────────────────────────────────────
+
+#[test]
+fn pause_blocks_contributions_and_unpause_resumes() {
+    let env = Env::default();
+    let deadline = 1_000u64;
+
+    let (_creator, token_id, client, token_admin_client) =
+        setup_contract(&env, deadline, 100_000, 100);
+
+    let contributor = Address::generate(&env);
+    token_admin_client.mint(&contributor, &1_000);
+
+    // Pause the campaign
+    client.pause();
+    assert_eq!(client.status(), Status::Paused);
+
+    // Contribution should fail while paused
+    let result = client.try_contribute(&contributor, &500, &token_id);
+    assert_eq!(result.err(), Some(Ok(ContractError::CampaignPaused)));
+
+    // Unpause and verify contributions work again
+    client.unpause();
+    assert_eq!(client.status(), Status::Active);
+
+    client.contribute(&contributor, &500, &token_id);
+    assert_eq!(client.total_raised(), 500);
+}
+
+#[test]
+fn pause_allows_refunds_when_cancelled() {
+    let env = Env::default();
+    let deadline = 1_000u64;
+
+    let (_creator, token_id, client, token_admin_client) =
+        setup_contract(&env, deadline, 100_000, 100);
+
+    let contributor = Address::generate(&env);
+    let token_client = token::Client::new(&env, &token_id);
+    token_admin_client.mint(&contributor, &500);
+
+    client.contribute(&contributor, &500, &token_id);
+    client.pause();
+    client.cancel_campaign();
+
+    // Refund should work even after pause+cancel
+    client.refund_single(&contributor);
+    assert_eq!(token_client.balance(&contributor), 500);
+}
+
+#[test]
+fn unpause_fails_when_not_paused() {
+    let env = Env::default();
+    let deadline = 1_000u64;
+
+    let (_creator, _token_id, client, _) = setup_contract(&env, deadline, 100_000, 100);
+
+    // Campaign is Active, not Paused — unpause should fail
+    let result = client.try_unpause();
+    assert_eq!(result.err(), Some(Ok(ContractError::NotActive)));
+}
+
+#[test]
+fn pause_fails_when_not_active() {
+    let env = Env::default();
+    let deadline = 1_000u64;
+
+    let (_creator, _token_id, client, _) = setup_contract(&env, deadline, 100_000, 100);
+
+    client.cancel_campaign();
+
+    let result = client.try_pause();
+    assert_eq!(result.err(), Some(Ok(ContractError::NotActive)));
+}

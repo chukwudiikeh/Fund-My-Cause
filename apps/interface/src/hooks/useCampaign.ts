@@ -113,3 +113,22 @@ export function useRefund(contractId: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["campaign", contractId] }),
   });
 }
+
+export function useBatchRefund(contractId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      caller,
+      contributors,
+      signTx,
+    }: {
+      caller: string;
+      contributors: string[];
+      signTx: (xdr: string) => Promise<string>;
+    }) => {
+      const { refundBatch } = await import("@/lib/contract");
+      return refundBatch(contractId, caller, contributors, signTx);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["campaign", contractId] }),
+  });
+}
