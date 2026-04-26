@@ -534,10 +534,73 @@ impl CrowdfundContract {
         Ok(refunded)
     }
 
-    /// Verifies the campaign as trusted (admin only).
+    /// Initiates an emergency withdrawal (admin only).
     ///
-    /// Marks the campaign as verified by the platform admin.
-    /// Only the admin can call this function.
+    /// Starts a time-locked emergency withdrawal process. After the lock period expires,
+    /// the admin can call `execute_emergency_withdrawal()` to recover funds.
+    /// This requires admin authorization and can be cancelled before execution.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    /// * `lock_period` - Time in seconds to lock the withdrawal (e.g., 604800 for 7 days)
+    ///
+    /// # Returns
+    /// * `Ok(())` on success
+    ///
+    /// # Side Effects
+    /// - Sets emergency lock time to current time + lock_period
+    /// - Publishes "EmergencyWithdrawalInitiated" event
+    pub fn initiate_emergency_withdrawal(env: Env, lock_period: u64) -> Result<(), ContractError> {
+        let admin: Address = env.storage().instance().get(&KEY_ADMIN).unwrap();
+        admin.require_auth();
+        
+        let lock_time = env.ledger().timestamp() + lock_period;
+        env.storage().instance().set(&DataKey::EmergencyLockTime, &lock_time);
+        env.events().publish(("campaign", "emergency_initiated"), lock_time);
+        Ok(())
+    }
+
+    /// Executes the emergency withdrawal (admin only).
+    ///
+    /// Transfers all funds to the admin after the lock period has expired.
+    /// Can only be called after the time-lock delay has passed.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    ///
+    /// # Returns
+    /// * `Ok(())` on success
+    /// * `Err(ContractError::EmergencyLocked)` if lock period has not expired
+    ///
+    /// # Side Effects
+    /// - Transfers all funds to admin
+    /// - Clears emergency lock time
+    /// - Publishes "EmergencyWithdrawalExecuted" event
+    pub fn execute_emergency_withdrawal(env: Env) -> Result<(), ContractError> {
+        let admin: Address = env.storage().instance().get(&KEY_ADMIN).unwrap();
+        admin.require_auth();
+        
+        let lock_time: u64 = env.storage().instance().get(&DataKey::EmergencyLockTime).unwrap_or(0);
+        if lock_time == 0 || env.ledger().timestamp() < lock_time {
+            return Err(ContractError::EmergencyLocked);
+        }
+        
+        let total: i128 = env.storage().instance().get(&KEY_TOTAL).unwrap();
+        if total > 0 {
+            let token_address: Address = env.storage().instance().get(&KEY_TOKEN).unwrap();
+            token::Client::new(&env, &token_address)
+                .transfer(&env.current_contract_address(), &admin, &total);
+            env.storage().instance().set(&KEY_TOTAL, &0i128);
+        }
+        
+        env.storage().instance().set(&DataKey::EmergencyLockTime, &0u64);
+        env.events().publish(("campaign", "emergency_executed"), total);
+        Ok(())
+    }
+
+    /// Cancels a pending emergency withdrawal (admin only).
+    ///
+    /// Removes the emergency lock, preventing the withdrawal from being executed.
     ///
     /// # Arguments
     /// * `env` - The Soroban environment
@@ -546,39 +609,18 @@ impl CrowdfundContract {
     /// * `Ok(())` on success
     ///
     /// # Side Effects
-    /// - Sets verified flag to true
-    /// - Publishes "CampaignVerified" event
-    pub fn verify_campaign(env: Env) -> Result<(), ContractError> {
+    /// - Clears emergency lock time
+    /// - Publishes "EmergencyWithdrawalCancelled" event
+    pub fn cancel_emergency_withdrawal(env: Env) -> Result<(), ContractError> {
         let admin: Address = env.storage().instance().get(&KEY_ADMIN).unwrap();
         admin.require_auth();
-        env.storage().instance().set(&DataKey::Verified, &true);
-        env.events().publish(("campaign", "verified"), ());
+        
+        env.storage().instance().set(&DataKey::EmergencyLockTime, &0u64);
+        env.events().publish(("campaign", "emergency_cancelled"), ());
         Ok(())
     }
 
-    /// Revokes campaign verification (admin only).
-    ///
-    /// Removes the verified status from the campaign.
-    /// Only the admin can call this function.
-    ///
-    /// # Arguments
-    /// * `env` - The Soroban environment
-    ///
-    /// # Returns
-    /// * `Ok(())` on success
-    ///
-    /// # Side Effects
-    /// - Sets verified flag to false
-    /// - Publishes "VerificationRevoked" event
-    pub fn revoke_verification(env: Env) -> Result<(), ContractError> {
-        let admin: Address = env.storage().instance().get(&KEY_ADMIN).unwrap();
-        admin.require_auth();
-        env.storage().instance().set(&DataKey::Verified, &false);
-        env.events().publish(("campaign", "verification_revoked"), ());
-        Ok(())
-    }
-
-    /// Pauses the campaign, preventing new contributions.
+    /// Verify campaign (admin only).
     ///
     /// Can only be called while the campaign is in Active status.
     /// The admin (creator) must authorize this transaction.
@@ -1005,6 +1047,20 @@ impl CrowdfundContract {
             }
         }
         count
+    }
+
+    /// Returns the emergency withdrawal lock time (0 if not initiated).
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    ///
+    /// # Returns
+    /// Unix timestamp when emergency withdrawal can be executed, or 0 if not initiated
+    pub fn emergency_lock_time(env: Env) -> u64 {
+        env.storage()
+            .instance()
+            .get(&DataKey::EmergencyLockTime)
+            .unwrap_or(0)
     }
 }
 
