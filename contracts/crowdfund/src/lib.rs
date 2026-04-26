@@ -534,6 +534,34 @@ impl CrowdfundContract {
         Ok(refunded)
     }
 
+    /// Sets the rate limit for contributions per hour (admin only).
+    ///
+    /// Configures the maximum amount a single address can contribute within a 1-hour window.
+    /// Set to 0 to disable rate limiting.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    /// * `max_amount_per_hour` - Maximum contribution amount per hour in stroops (0 = disabled)
+    ///
+    /// # Returns
+    /// * `Ok(())` on success
+    ///
+    /// # Side Effects
+    /// - Updates rate limit configuration
+    /// - Publishes "RateLimitUpdated" event
+    pub fn set_rate_limit(env: Env, max_amount_per_hour: i128) -> Result<(), ContractError> {
+        let admin: Address = env.storage().instance().get(&KEY_ADMIN).unwrap();
+        admin.require_auth();
+        
+        if max_amount_per_hour > 0 {
+            env.storage().instance().set(&KEY_RATE_LIMIT, &max_amount_per_hour);
+        } else {
+            env.storage().instance().set(&KEY_RATE_LIMIT, &0i128);
+        }
+        env.events().publish(("campaign", "rate_limit_updated"), max_amount_per_hour);
+        Ok(())
+    }
+
     /// Initiates an emergency withdrawal (admin only).
     ///
     /// Starts a time-locked emergency withdrawal process. After the lock period expires,
@@ -1060,6 +1088,20 @@ impl CrowdfundContract {
         env.storage()
             .instance()
             .get(&DataKey::EmergencyLockTime)
+            .unwrap_or(0)
+    }
+
+    /// Returns the current rate limit configuration.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    ///
+    /// # Returns
+    /// Maximum contribution amount per hour in stroops, or 0 if disabled
+    pub fn rate_limit(env: Env) -> i128 {
+        env.storage()
+            .instance()
+            .get(&KEY_RATE_LIMIT)
             .unwrap_or(0)
     }
 }
