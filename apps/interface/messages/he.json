@@ -1,0 +1,108 @@
+{
+  "nav": {
+    "connectWallet": "חיבור ארנק",
+    "disconnect": "ניתוק",
+    "notifications": "התראות",
+    "toggleTheme": "החלפת ערכת נושא",
+    "openMenu": "פתיחת תפריט",
+    "closeMenu": "סגירת תפריט",
+    "restoringSession": "משחזר את הפעלת הארנק…",
+    "networkMismatch": "הארנק שלך ברשת {walletNetwork} אך האפליקציה משתמשת ב-{appNetwork}. אנא החלף רשת ב-Freighter."
+  },
+  "home": {
+    "badge": "בנוי על Stellar · מופעל על ידי Soroban",
+    "heroTitle": "מממן את העתיד,\nעל הבלוקצ'יין.",
+    "heroSubtitle": "צור או תמוך בקמפיינים עם עסקאות מהירות וחסרות אמון ברשת Stellar.",
+    "exploreCampaigns": "גלה קמפיינים",
+    "startCampaign": "התחל קמפיין",
+    "featuredCampaigns": "קמפיינים מומלצים",
+    "viewAll": "הצג הכל",
+    "featured": "מומלץ",
+    "raised": "גויסו {amount} XLM",
+    "goal": "יעד: {amount} XLM",
+    "timeLeft": "{time} נותרו",
+    "pledgeNow": "תרום עכשיו",
+    "successfullyFunded": "מומן בהצלחה",
+    "howItWorks": "איך זה עובד",
+    "stats": {
+      "campaignsLaunched": "קמפיינים שהושקו",
+      "totalRaised": "סה\"כ גויס",
+      "contributors": "תורמים"
+    },
+    "steps": {
+      "createTitle": "צור",
+      "createDesc": "פרוס קמפיין על הבלוקצ'יין עם היעד, המועד האחרון והטוקן שלך תוך דקות.",
+      "fundTitle": "מממן",
+      "fundDesc": "תורמים מתחייבים ל-XLM או לכל טוקן Stellar לפני המועד האחרון.",
+      "withdrawTitle": "משוך או החזר",
+      "withdrawDesc": "היעד הושג? משוך כספים. היעד לא הושג? תורמים תובעים החזרים אוטומטית."
+    },
+    "footer": {
+      "campaigns": "קמפיינים",
+      "create": "צור",
+      "dashboard": "לוח בקרה",
+      "bookmarks": "סימניות",
+      "stellarDocs": "מסמכי Stellar",
+      "license": "רישיון MIT · בנוי על Stellar"
+    }
+  },
+  "campaigns": {
+    "title": "קמפיינים",
+    "searchPlaceholder": "חפש קמפיינים...",
+    "sortNewest": "החדשים ביותר",
+    "sortMostFunded": "הממומנים ביותר",
+    "sortEndingSoon": "מסתיימים בקרוב",
+    "filterAll": "הכל",
+    "filterActive": "פעילים",
+    "filterFunded": "ממומנים",
+    "filterEnded": "הסתיימו",
+    "filterLabel": "סינון קמפיינים",
+    "found": "נמצא {count} קמפיין",
+    "foundPlural": "נמצאו {count} קמפיינים",
+    "noResults": "לא נמצאו קמפיינים",
+    "noResultsDesc": "נסה לשנות את החיפוש או הפילטרים.",
+    "clearFilters": "נקה פילטרים",
+    "previous": "הקודם",
+    "next": "הבא",
+    "page": "עמוד {current} מתוך {total}",
+    "selected": "{count} נבחרו",
+    "compare": "השווה",
+    "clear": "נקה"
+  },
+  "bookmarks": {
+    "title": "הסימניות שלי",
+    "export": "ייצוא",
+    "import": "ייבוא",
+    "empty": "אין סימניות עדיין.",
+    "browseCampaigns": "עיין בקמפיינים",
+    "deadlineAlert": "{title} מסתיים בעוד {days, plural, =0 {פחות מיום} one {יום אחד} other {# ימים}}!"
+  },
+  "compare": {
+    "title": "השוואת קמפיינים",
+    "share": "שתף",
+    "clear": "נקה",
+    "noSelection": "לא נבחרו קמפיינים להשוואה.",
+    "browseCampaigns": "עיין בקמפיינים",
+    "selectHint": "בחר עד 4 קמפיינים מדף הקמפיינים להשוואה.",
+    "metric": "מדד",
+    "status": "סטטוס",
+    "raised": "גויס",
+    "goal": "יעד",
+    "progress": "התקדמות",
+    "deadline": "מועד אחרון",
+    "contributors": "תורמים",
+    "token": "טוקן",
+    "removeFromComparison": "הסר את {title} מההשוואה",
+    "copiedToClipboard": "קישור ההשוואה הועתק ללוח!"
+  },
+  "notFound": {
+    "title": "404",
+    "message": "הדף הזה לא קיים.",
+    "goHome": "חזור לדף הבית"
+  },
+  "common": {
+    "loading": "טוען…",
+    "error": "משהו השתבש.",
+    "retry": "נסה שוב"
+  }
+}

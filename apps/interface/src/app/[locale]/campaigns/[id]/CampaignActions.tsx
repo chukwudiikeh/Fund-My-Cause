@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useWallet } from "@/context/WalletContext";
 import { PledgeModal } from "@/components/ui/PledgeModal";
 import { TransactionStatus, TxStatus } from "@/components/ui/TransactionStatus";
-import { withdraw, refundSingle, getCampaignStats, pauseCampaign, unpauseCampaign } from "@/lib/contract";
+import { withdraw, refundSingle, getCampaignStats } from "@/lib/contract";
 import {
   fetchContribution,
   buildWithdrawTx,
@@ -225,37 +225,6 @@ export function CampaignActions({
           >
             Withdraw Funds
           </button>
-        )}
-
-        {/* Admin: Pause campaign */}
-        {isCreator && campaignStatus === "Active" && !deadlinePassed && (
-          <button
-            onClick={handlePause}
-            disabled={isProcessing}
-            aria-label="Pause campaign"
-            className="w-full py-2 rounded-xl font-medium text-sm bg-orange-600 hover:bg-orange-500 transition text-white disabled:opacity-50"
-          >
-            Pause Campaign
-          </button>
-        )}
-
-        {/* Admin: Unpause campaign */}
-        {isCreator && campaignStatus === "Paused" && (
-          <button
-            onClick={handleUnpause}
-            disabled={isProcessing}
-            aria-label="Resume campaign"
-            className="w-full py-2 rounded-xl font-medium text-sm bg-blue-600 hover:bg-blue-500 transition text-white disabled:opacity-50"
-          >
-            Resume Campaign
-          </button>
-        )}
-
-        {/* Paused notice for non-admin */}
-        {!isCreator && campaignStatus === "Paused" && (
-          <p className="text-center text-sm text-orange-500 py-2">
-            This campaign is currently paused. Contributions are temporarily disabled.
-          </p>
         )}
       </div>
 

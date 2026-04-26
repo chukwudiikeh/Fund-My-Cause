@@ -1,0 +1,108 @@
+{
+  "nav": {
+    "connectWallet": "Connecter le portefeuille",
+    "disconnect": "Déconnecter",
+    "notifications": "Notifications",
+    "toggleTheme": "Changer le thème",
+    "openMenu": "Ouvrir le menu",
+    "closeMenu": "Fermer le menu",
+    "restoringSession": "Restauration de la session…",
+    "networkMismatch": "Votre portefeuille est sur {walletNetwork} mais cette app utilise {appNetwork}. Veuillez changer de réseau dans Freighter."
+  },
+  "home": {
+    "badge": "Construit sur Stellar · Propulsé par Soroban",
+    "heroTitle": "Financez l'Avenir,\nSur la Chaîne.",
+    "heroSubtitle": "Créez ou soutenez des campagnes avec des transactions ultra-rapides et sans confiance sur le réseau Stellar.",
+    "exploreCampaigns": "Explorer les campagnes",
+    "startCampaign": "Lancer une campagne",
+    "featuredCampaigns": "Campagnes en vedette",
+    "viewAll": "Voir tout",
+    "featured": "En vedette",
+    "raised": "{amount} XLM collectés",
+    "goal": "Objectif : {amount} XLM",
+    "timeLeft": "{time} restant",
+    "pledgeNow": "Contribuer maintenant",
+    "successfullyFunded": "Financé avec succès",
+    "howItWorks": "Comment ça marche",
+    "stats": {
+      "campaignsLaunched": "Campagnes lancées",
+      "totalRaised": "Total collecté",
+      "contributors": "Contributeurs"
+    },
+    "steps": {
+      "createTitle": "Créer",
+      "createDesc": "Déployez une campagne on-chain avec votre objectif, date limite et token en quelques minutes.",
+      "fundTitle": "Financer",
+      "fundDesc": "Les contributeurs engagent des XLM ou tout token Stellar avant la date limite.",
+      "withdrawTitle": "Retirer ou Rembourser",
+      "withdrawDesc": "Objectif atteint ? Retirez les fonds. Objectif manqué ? Les contributeurs réclament automatiquement leurs remboursements."
+    },
+    "footer": {
+      "campaigns": "Campagnes",
+      "create": "Créer",
+      "dashboard": "Tableau de bord",
+      "bookmarks": "Favoris",
+      "stellarDocs": "Docs Stellar",
+      "license": "Licence MIT · Construit sur Stellar"
+    }
+  },
+  "campaigns": {
+    "title": "Campagnes",
+    "searchPlaceholder": "Rechercher des campagnes...",
+    "sortNewest": "Plus récentes",
+    "sortMostFunded": "Plus financées",
+    "sortEndingSoon": "Se terminent bientôt",
+    "filterAll": "Toutes",
+    "filterActive": "Actives",
+    "filterFunded": "Financées",
+    "filterEnded": "Terminées",
+    "filterLabel": "Filtrer les campagnes",
+    "found": "{count} campagne trouvée",
+    "foundPlural": "{count} campagnes trouvées",
+    "noResults": "Aucune campagne trouvée",
+    "noResultsDesc": "Essayez d'ajuster votre recherche ou vos filtres.",
+    "clearFilters": "Effacer les filtres",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "page": "Page {current} sur {total}",
+    "selected": "{count} sélectionnées",
+    "compare": "Comparer",
+    "clear": "Effacer"
+  },
+  "bookmarks": {
+    "title": "Mes favoris",
+    "export": "Exporter",
+    "import": "Importer",
+    "empty": "Aucun favori pour l'instant.",
+    "browseCampaigns": "Parcourir les campagnes",
+    "deadlineAlert": "{title} se termine dans {days, plural, =0 {moins d'un jour} one {# jour} other {# jours}} !"
+  },
+  "compare": {
+    "title": "Comparer les campagnes",
+    "share": "Partager",
+    "clear": "Effacer",
+    "noSelection": "Aucune campagne sélectionnée pour la comparaison.",
+    "browseCampaigns": "Parcourir les campagnes",
+    "selectHint": "Sélectionnez jusqu'à 4 campagnes depuis la page des campagnes pour comparer.",
+    "metric": "Métrique",
+    "status": "Statut",
+    "raised": "Collecté",
+    "goal": "Objectif",
+    "progress": "Progression",
+    "deadline": "Date limite",
+    "contributors": "Contributeurs",
+    "token": "Token",
+    "removeFromComparison": "Retirer {title} de la comparaison",
+    "copiedToClipboard": "Lien de comparaison copié dans le presse-papiers !"
+  },
+  "notFound": {
+    "title": "404",
+    "message": "Cette page n'existe pas.",
+    "goHome": "Retour à l'accueil"
+  },
+  "common": {
+    "loading": "Chargement…",
+    "error": "Une erreur s'est produite.",
+    "retry": "Réessayer"
+  }
+}

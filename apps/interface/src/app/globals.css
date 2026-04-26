@@ -24,6 +24,15 @@ body {
   transition-timing-function: ease;
 }
 
+/* RTL support for Arabic and Hebrew */
+[dir="rtl"] {
+  font-family: Arial, "Segoe UI", Tahoma, sans-serif;
+}
+
+[dir="rtl"] .flex {
+  --tw-space-x-reverse: 1;
+}
+
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
