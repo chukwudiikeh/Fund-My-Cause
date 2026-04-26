@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { Loader2, Copy, Check, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,6 +20,10 @@ import { TeamMemberCard } from "@/components/ui/TeamMemberCard";
 import { TrustSignals } from "@/components/ui/TrustSignals";
 import { ActivityFeed, type ActivityItem } from "@/components/ui/ActivityFeed";
 import { ALL_CAMPAIGNS } from "@/lib/campaigns";
+import { Confetti } from "@/components/ui/Confetti";
+import { GoalSuccessModal } from "@/components/ui/GoalSuccessModal";
+import { GoalSuccessBadge } from "@/components/ui/GoalSuccessBadge";
+import { ShareModal } from "@/components/ui/ShareModal";
 
 function ContractIdRow({ contractId }: { contractId: string }) {
   const [copied, setCopied] = useState(false);
@@ -113,6 +117,12 @@ export function CampaignDetailContent({ contractId }: { contractId: string }) {
   } = useCampaign(contractId);
   const { address } = useWallet();
 
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  // Track whether we've already shown the modal for this campaign load
+  const celebratedRef = useRef(false);
+
   if (loading) {
     return (
       <div className="flex justify-center py-24">
@@ -146,9 +156,41 @@ export function CampaignDetailContent({ contractId }: { contractId: string }) {
   const deadlineIso = new Date(Number(info.deadline) * 1000).toISOString();
   const deadlinePassed = Number(info.deadline) * 1000 < Date.now();
   const goalMet = stats.totalRaised >= stats.goal;
+  const totalRaisedXlm = Number(stats.totalRaised) / 1e7;
+  const isCreator = !!address && address === info.creator;
+
+  // Show celebration once for the creator when goal is met
+  useEffect(() => {
+    if (goalMet && isCreator && !celebratedRef.current) {
+      celebratedRef.current = true;
+      setShowConfetti(true);
+      setShowSuccessModal(true);
+    }
+  }, [goalMet, isCreator]);
 
   return (
     <>
+      {showConfetti && <Confetti />}
+
+      {showSuccessModal && info && (
+        <GoalSuccessModal
+          campaignTitle={info.title}
+          totalRaisedXlm={totalRaisedXlm}
+          onClose={() => setShowSuccessModal(false)}
+          onShare={() => { setShowSuccessModal(false); setShowShareModal(true); }}
+          onWithdraw={() => setShowSuccessModal(false)}
+          alreadyWithdrawn={info.status === "Successful"}
+        />
+      )}
+
+      {showShareModal && info && (
+        <ShareModal
+          campaignId={contractId}
+          campaignTitle={info.title}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
+
       <div className="w-full h-72 overflow-hidden md:h-96 relative">
         <Image
           src="https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=1600"
@@ -183,6 +225,8 @@ export function CampaignDetailContent({ contractId }: { contractId: string }) {
             <span>{formatXLM(stats.goal)} goal</span>
           </div>
         </div>
+
+        {goalMet && <GoalSuccessBadge totalRaisedXlm={totalRaisedXlm} />}
 
         <div className="grid grid-cols-1 gap-4 text-center sm:grid-cols-3">
           <div className="rounded-xl bg-gray-100 p-4 dark:bg-gray-900">

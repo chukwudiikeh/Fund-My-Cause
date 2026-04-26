@@ -13,7 +13,7 @@ import {
   buildRefundTx,
   type CampaignStatus 
 } from "@/lib/soroban";
-import { useToast } from "@/components/ui/Toast";
+import { useNotifications } from "@/context/NotificationContext";
 
 interface Props {
   contractId: string;
@@ -21,7 +21,6 @@ interface Props {
   deadlinePassed: boolean;
   goalMet: boolean;
   campaignTitle: string;
-  status: "Active" | "Successful" | "Refunded" | "Cancelled";
   /** Total raised in XLM — used to display payout amount after withdraw. */
   raisedXlm?: number;
   /** Minimum contribution in stroops. */
@@ -48,6 +47,7 @@ export function CampaignActions({
   onRollbackOptimistic,
 }: Props) {
   const { address, connect, signTx, networkMismatch } = useWallet();
+  const { addNotification } = useNotifications();
   const [pledging, setPledging] = useState(false);
   const [userContribution, setUserContribution] = useState(0);
   const [campaignStatus, setCampaignStatus] = useState(initialStatus);
@@ -58,7 +58,6 @@ export function CampaignActions({
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
   const [txHash, setTxHash] = useState("");
   const [txError, setTxError] = useState("");
-  const { addToast } = useToast();
 
   useEffect(() => {
     if (address) {
@@ -74,7 +73,10 @@ export function CampaignActions({
     isCreator &&
     (campaignStatus === "Successful" || (deadlinePassed && goalMet && campaignStatus === "Active"));
   const canRefund =
-    !!address && deadlinePassed && !goalMet && userContribution > 0 && campaignStatus !== "Refunded";
+    !!address &&
+    userContribution > 0 &&
+    campaignStatus !== "Refunded" &&
+    (campaignStatus === "Cancelled" || (deadlinePassed && !goalMet));
 
   async function handlePause() {
     if (!address || pendingTx) return;
@@ -184,7 +186,17 @@ export function CampaignActions({
   async function handlePledgeSuccess() {
     try {
       const stats = await getCampaignStats(contractId);
-      setRaised(Number(stats.totalRaised) / 1e7);
+      const newRaised = Number(stats.totalRaised) / 1e7;
+      setRaised(newRaised);
+      // Notify if this pledge pushed the campaign over the goal
+      if (stats.totalRaised >= stats.goal) {
+        addNotification({
+          type: "goal_reached",
+          title: "Goal Reached! 🎉",
+          message: `"${campaignTitle}" has been fully funded with ${newRaised.toLocaleString()} XLM!`,
+          campaignId: contractId,
+        });
+      }
     } catch {
       // non-critical
     }

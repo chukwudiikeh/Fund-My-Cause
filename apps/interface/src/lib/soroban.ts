@@ -412,8 +412,13 @@ async function buildSimpleContractTx(
 export const buildWithdrawTx = (caller: string, contractId: string) =>
   buildSimpleContractTx(caller, contractId, "withdraw");
 
-export const buildCancelTx = (caller: string, contractId: string) =>
-  buildSimpleContractTx(caller, contractId, "cancel_campaign");
+export const buildCancelTx = (caller: string, contractId: string, reason?: string) =>
+  buildSimpleContractTx(
+    caller,
+    contractId,
+    "cancel_campaign",
+    reason ? [nativeToScVal(reason, { type: "string" })] : [],
+  );
 
 export async function buildRefundTx(
   caller: string,
