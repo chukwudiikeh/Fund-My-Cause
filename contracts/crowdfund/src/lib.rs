@@ -137,6 +137,7 @@ impl CrowdfundContract {
     /// * `contributor` - The contributor's Stellar address (must authorize)
     /// * `amount` - Contribution amount in stroops (must be >= min_contribution)
     /// * `token` - The token address being contributed (must match campaign token or be in whitelist)
+    /// * `anonymous` - Whether to hide this contribution from public lists
     ///
     /// # Returns
     /// * `Ok(())` on success
@@ -146,14 +147,16 @@ impl CrowdfundContract {
     /// * `Err(ContractError::CampaignEnded)` if current time >= deadline
     /// * `Err(ContractError::TokenNotAccepted)` if token not in whitelist
     /// * `Err(ContractError::Overflow)` if total raised would overflow
+    /// * `Err(ContractError::RateLimitExceeded)` if rate limit exceeded
     ///
     /// # Side Effects
     /// - Transfers tokens from contributor to contract
     /// - Updates contributor's total contribution amount
     /// - Increments contributor count if this is their first contribution
     /// - Updates largest contribution if applicable
+    /// - Stores anonymity flag if anonymous=true
     /// - Publishes "contributed" event
-    pub fn contribute(env: Env, contributor: Address, amount: i128, token: Address) -> Result<(), ContractError> {
+    pub fn contribute(env: Env, contributor: Address, amount: i128, token: Address, anonymous: bool) -> Result<(), ContractError> {
         contributor.require_auth();
 
         let min: i128 = env.storage().instance().get(&KEY_MIN).unwrap();
@@ -172,6 +175,26 @@ impl CrowdfundContract {
         let deadline: u64 = env.storage().instance().get(&KEY_DEADLINE).unwrap();
         if env.ledger().timestamp() >= deadline {
             return Err(ContractError::CampaignEnded);
+        }
+
+        // Check rate limit
+        if let Some(rate_limit) = env.storage().instance().get::<_, i128>(&KEY_RATE_LIMIT) {
+            let now = env.ledger().timestamp();
+            let ts_key = DataKey::RateLimitTimestamp(contributor.clone());
+            let last_ts: u64 = env.storage().persistent().get(&ts_key).unwrap_or(0);
+            
+            if now - last_ts < 3600 {
+                let amt_key = DataKey::RateLimitAmount(contributor.clone());
+                let period_amount: i128 = env.storage().persistent().get(&amt_key).unwrap_or(0);
+                if period_amount + amount > rate_limit {
+                    return Err(ContractError::RateLimitExceeded);
+                }
+                env.storage().persistent().set(&amt_key, &(period_amount + amount));
+            } else {
+                let amt_key = DataKey::RateLimitAmount(contributor.clone());
+                env.storage().persistent().set(&ts_key, &now);
+                env.storage().persistent().set(&amt_key, &amount);
+            }
         }
 
         // Validate token against whitelist if one is set, otherwise fall back to default token
@@ -205,30 +228,26 @@ impl CrowdfundContract {
             let count: u32 = env.storage().instance().get(&DataKey::ContributorCount).unwrap();
             env.storage().instance().set(&DataKey::ContributorCount, &(count + 1));
 
-            let mut contributors: Vec<Address> = env
-                .storage()
-                .persistent()
-                .get(&KEY_CONTRIBS)
-                .unwrap_or_else(|| Vec::new(&env));
-            contributors.push_back(contributor.clone());
-            env.storage().persistent().set(&KEY_CONTRIBS, &contributors);
-            env.storage().persistent().extend_ttl(&KEY_CONTRIBS, 100, 100);
+            if !anonymous {
+                let mut contributors: Vec<Address> = env
+                    .storage()
+                    .persistent()
+                    .get(&KEY_CONTRIBS)
+                    .unwrap_or_else(|| Vec::new(&env));
+                contributors.push_back(contributor.clone());
+                env.storage().persistent().set(&KEY_CONTRIBS, &contributors);
+                env.storage().persistent().extend_ttl(&KEY_CONTRIBS, 100, 100);
+            }
+        }
+
+        if anonymous {
+            env.storage().persistent().set(&DataKey::AnonymousContribution(contributor.clone()), &true);
+            env.storage().persistent().extend_ttl(&DataKey::AnonymousContribution(contributor.clone()), 100, 100);
         }
 
         let largest: i128 = env.storage().instance().get(&DataKey::LargestContribution).unwrap();
         if new_amount > largest {
             env.storage().instance().set(&DataKey::LargestContribution, &new_amount);
-        }
-
-        let mut contributors: Vec<Address> = env
-            .storage()
-            .persistent()
-            .get(&KEY_CONTRIBS)
-            .unwrap_or_else(|| Vec::new(&env));
-        if !contributors.contains(&contributor) {
-            contributors.push_back(contributor.clone());
-            env.storage().persistent().set(&KEY_CONTRIBS, &contributors);
-            env.storage().persistent().extend_ttl(&KEY_CONTRIBS, 100, 100);
         }
 
         env.storage().instance().extend_ttl(17280, 518400);
@@ -513,6 +532,50 @@ impl CrowdfundContract {
         }
 
         Ok(refunded)
+    }
+
+    /// Verifies the campaign as trusted (admin only).
+    ///
+    /// Marks the campaign as verified by the platform admin.
+    /// Only the admin can call this function.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    ///
+    /// # Returns
+    /// * `Ok(())` on success
+    ///
+    /// # Side Effects
+    /// - Sets verified flag to true
+    /// - Publishes "CampaignVerified" event
+    pub fn verify_campaign(env: Env) -> Result<(), ContractError> {
+        let admin: Address = env.storage().instance().get(&KEY_ADMIN).unwrap();
+        admin.require_auth();
+        env.storage().instance().set(&DataKey::Verified, &true);
+        env.events().publish(("campaign", "verified"), ());
+        Ok(())
+    }
+
+    /// Revokes campaign verification (admin only).
+    ///
+    /// Removes the verified status from the campaign.
+    /// Only the admin can call this function.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    ///
+    /// # Returns
+    /// * `Ok(())` on success
+    ///
+    /// # Side Effects
+    /// - Sets verified flag to false
+    /// - Publishes "VerificationRevoked" event
+    pub fn revoke_verification(env: Env) -> Result<(), ContractError> {
+        let admin: Address = env.storage().instance().get(&KEY_ADMIN).unwrap();
+        admin.require_auth();
+        env.storage().instance().set(&DataKey::Verified, &false);
+        env.events().publish(("campaign", "verification_revoked"), ());
+        Ok(())
     }
 
     /// Pauses the campaign, preventing new contributions.
@@ -882,6 +945,66 @@ impl CrowdfundContract {
             result.push_back(contributors.get(i).unwrap());
         }
         result
+    }
+
+    /// Returns whether the campaign is verified.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    ///
+    /// # Returns
+    /// true if campaign is verified, false otherwise
+    pub fn is_verified(env: Env) -> bool {
+        env.storage()
+            .instance()
+            .get(&DataKey::Verified)
+            .unwrap_or(false)
+    }
+
+    /// Returns whether a contribution is anonymous.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    /// * `contributor` - The contributor's address
+    ///
+    /// # Returns
+    /// true if contribution is anonymous, false otherwise
+    pub fn is_anonymous_contributor(env: Env, contributor: Address) -> bool {
+        env.storage()
+            .persistent()
+            .get(&DataKey::AnonymousContribution(contributor))
+            .unwrap_or(false)
+    }
+
+    /// Returns the count of anonymous contributions.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban environment
+    ///
+    /// # Returns
+    /// Number of anonymous contributions
+    pub fn anonymous_contribution_count(env: Env) -> u32 {
+        let contributors: Vec<Address> = env
+            .storage()
+            .persistent()
+            .get(&KEY_CONTRIBS)
+            .unwrap_or_else(|| Vec::new(&env));
+        
+        let mut count = 0u32;
+        let total_contributors: u32 = env.storage().instance().get(&DataKey::ContributorCount).unwrap_or(0);
+        
+        for i in 0..total_contributors {
+            if let Ok(Some(contrib)) = env.storage().persistent().get::<_, Address>(&DataKey::Contribution(contributors.get(i).unwrap())) {
+                if env.storage()
+                    .persistent()
+                    .get::<_, bool>(&DataKey::AnonymousContribution(contrib))
+                    .unwrap_or(false)
+                {
+                    count += 1;
+                }
+            }
+        }
+        count
     }
 }
 

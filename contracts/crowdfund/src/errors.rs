@@ -37,4 +37,10 @@ pub enum ContractError {
     InvalidGoal = 12,
     /// Token is not accepted by this campaign
     TokenNotAccepted = 13,
+    /// Campaign is not verified
+    NotVerified = 14,
+    /// Rate limit exceeded
+    RateLimitExceeded = 15,
+    /// Emergency withdrawal is locked
+    EmergencyLocked = 16,
 }

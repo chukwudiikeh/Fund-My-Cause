@@ -34,3 +34,5 @@ pub const KEY_SOCIAL: Symbol = soroban_sdk::symbol_short!("SOCIAL");
 pub const KEY_PLATFORM: Symbol = soroban_sdk::symbol_short!("PLATFORM");
 /// Storage key for contract administrator
 pub const KEY_ADMIN: Symbol = soroban_sdk::symbol_short!("ADMIN");
+/// Storage key for rate limit configuration (max amount per hour)
+pub const KEY_RATE_LIMIT: Symbol = soroban_sdk::symbol_short!("RATELIMIT");

@@ -101,4 +101,14 @@ pub enum DataKey {
     LargestContribution,
     /// Whitelist of accepted token addresses
     AcceptedTokens,
+    /// Campaign verification status
+    Verified,
+    /// Anonymous contribution flag for an address
+    AnonymousContribution(Address),
+    /// Rate limit tracking: last contribution timestamp for an address
+    RateLimitTimestamp(Address),
+    /// Rate limit tracking: amount contributed in current period
+    RateLimitAmount(Address),
+    /// Emergency withdrawal lock time
+    EmergencyLockTime,
 }
