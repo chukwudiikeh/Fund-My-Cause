@@ -78,48 +78,6 @@ export function CampaignActions({
     campaignStatus !== "Refunded" &&
     (campaignStatus === "Cancelled" || (deadlinePassed && !goalMet));
 
-  async function handlePause() {
-    if (!address || pendingTx) return;
-    setPendingTx(true);
-    setTxError("");
-    setTxStatus("signing");
-    try {
-      await pauseCampaign(contractId, address, async (xdr) => {
-        const signed = await signTx(xdr);
-        setTxStatus("submitting");
-        return signed;
-      });
-      setTxStatus("success");
-      setCampaignStatus("Paused");
-    } catch (err) {
-      setTxError(err instanceof Error ? err.message : "Pause failed.");
-      setTxStatus("error");
-    } finally {
-      setPendingTx(false);
-    }
-  }
-
-  async function handleUnpause() {
-    if (!address || pendingTx) return;
-    setPendingTx(true);
-    setTxError("");
-    setTxStatus("signing");
-    try {
-      await unpauseCampaign(contractId, address, async (xdr) => {
-        const signed = await signTx(xdr);
-        setTxStatus("submitting");
-        return signed;
-      });
-      setTxStatus("success");
-      setCampaignStatus("Active");
-    } catch (err) {
-      setTxError(err instanceof Error ? err.message : "Unpause failed.");
-      setTxStatus("error");
-    } finally {
-      setPendingTx(false);
-    }
-  }
-
   async function handleWithdraw() {
     if (!address || pendingTx) return;
     setPendingTx(true);
